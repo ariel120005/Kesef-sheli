@@ -14,8 +14,12 @@ same account's data.
   `@react-native-firebase`, since that requires a custom native build and won't run in Expo Go.
 - Data: Cloud Firestore, scoped per-user under `users/{uid}`.
 - Local-only state: theme preference (`src/theme.tsx`), persisted via AsyncStorage.
-- No navigation library — four screens are switched by plain state in `App.tsx`, with a custom
+- No navigation library — screens are switched by plain state in `App.tsx`, with a custom
   bottom tab bar (see below).
+- Charts: `react-native-svg` for the category donut chart (works in Expo Go and on web via
+  react-native-web, no custom native code). Map tab: `react-native-webview` on native (also
+  Expo-Go-compatible) with a platform-specific `MapScreen.web.tsx` plain `<iframe>` fallback,
+  since react-native-webview has no web implementation.
 
 ## Firebase setup
 
@@ -71,24 +75,30 @@ service cloud.firestore {
 
 ## App structure & navigation
 
-Two bottom tabs, bar always visible, RTL order (rightmost → leftmost): בית, תובנות. `App.tsx`
-also renders a fixed top row (`src/components/TopBar.tsx`) above the tab content — a profile icon
-(rightmost) that opens a dropdown menu, and a search icon next to it (currently a UI placeholder
-with no behavior wired up yet). Settings, the account/sign-in screen, Trips, and the Savings Goal
-screen are **not** tabs — they're `OverlayScreen`s (`src/types.ts`) reached only via the profile
-dropdown menu (or, for Trips/Savings Goal, via a shortcut card on the Insights tab), each with its
-own back button that returns to whichever tab was active. `App.tsx` holds `activeTab` (the two
-bottom tabs) and `overlayScreen` (which of the four, or `null`) as separate state — switching
-bottom tabs always clears any open overlay screen.
+Three bottom tabs, bar always visible, RTL order (rightmost → leftmost): תובנות, בית, מפה.
+`App.tsx` also renders a fixed top row (`src/components/TopBar.tsx`) above the tab content — a
+profile icon (rightmost) that opens a dropdown menu, and a search icon next to it (currently a UI
+placeholder with no behavior wired up yet). Settings, the account/sign-in screen, Trips, and the
+Savings Goal screen are **not** tabs — they're `OverlayScreen`s (`src/types.ts`) reached only via
+the profile dropdown menu (or, for Trips/Savings Goal, via a shortcut card on the Insights tab),
+each with its own back button that returns to whichever tab was active. `App.tsx` holds
+`activeTab` (the three bottom tabs) and `overlayScreen` (which of the four, or `null`) as
+separate state — switching bottom tabs always clears any open overlay screen.
 
 - **בית (Home)** — the expense tracker's core loop: budget meter (view/edit the monthly budget),
   add-expense form, category breakdown, and the recent-expenses list. Requires being signed in;
   shows a locked/empty state otherwise. When Firebase isn't configured at all (e.g. the public
   GitHub Pages preview), it instead shows a fully interactive **demo mode** (`src/demoData.ts`)
   with sample data, and a "מצב הדגמה" badge makes that clear.
-- **תובנות (Insights)** — the AI insights card, plus two small shortcut cards ("יעד חיסכון" and
-  "טיולים") that each open their respective `OverlayScreen` on tap. Same demo-mode data as Home —
-  see `src/hooks/useDemoBudgetData.tsx` below.
+- **תובנות (Insights)** — the AI insights card, a donut chart of this month's spending by category
+  (`CategoryDonutChart.tsx`, `react-native-svg`) with a percentage legend, plus two small shortcut
+  cards ("יעד חיסכון" and "טיולים") that each open their respective `OverlayScreen` on tap. Same
+  demo-mode data as Home — see `src/hooks/useDemoBudgetData.tsx` below.
+- **מפה (Map)** — a general-purpose world map (OpenStreetMap embed), not tied to any of the app's
+  own data — there's no location tracking anywhere in the app. `src/screens/MapScreen.tsx` (native,
+  `react-native-webview`) vs `MapScreen.web.tsx` (plain `<iframe>`, since that package has no web
+  implementation), picked via Metro's `.web.tsx` platform extension the same way `firebase.ts` /
+  `firebase.web.ts` are.
 - **Profile dropdown menu** (opened from the top bar's profile icon) — rows: הגדרות, then
   התחברות/החשבון שלי (label flips once signed in), then טיולים and יעד חיסכון. The latter two are
   per-account features: in demo mode they're always shown (there's no sign-in concept there), but
@@ -148,7 +158,11 @@ module-level constant), so it re-renders correctly on theme toggle.
   **not** a live LLM call. A real Claude API integration was considered but rejected for now
   since it would need a server-side proxy (e.g. a Firebase Cloud Function) to keep the API key
   off the client; the local heuristics were chosen as the no-cost, no-backend option.
-- Breakdown of the current month's spending by category.
+- Breakdown of the current month's spending by category, both as a list
+  (`CategoryBreakdown.tsx`, on Home) and as a donut chart with a percentage legend
+  (`CategoryDonutChart.tsx`, on the Insights tab). Category colors (`CATEGORY_COLORS` in
+  `src/constants.ts`) are a fixed-order categorical palette derived from the app's own
+  turquoise/purple/green/rose brand hues, validated CVD-safe against both theme surfaces.
 - Recent expenses list, newest first, tap an expense to edit its amount/category/note/recurring
   flag, per-item delete (confirm before delete). Empty state shows a small floating-coins
   animation instead of plain text (`src/components/EmptyExpensesState.tsx`).
@@ -169,6 +183,7 @@ module-level constant), so it re-renders correctly on theme toggle.
   notification text into a charge (→ expense, category guessed from merchant) or a credit (→
   reimbursement, same concept as trip mode). This is parsing logic only — see "Notes for future
   work" for what's still needed to actually read notifications on-device.
+- Map tab: a general-purpose world map, unrelated to any expense/trip data.
 
 ## RTL approach
 
@@ -183,7 +198,7 @@ icon/button with a label. This keeps behavior predictable when testing live in E
 ```
 App.tsx                              ThemeProvider + AuthProvider + DemoBudgetDataProvider + tab/overlay switching
 src/types.ts                         Expense, Category, TabKey, OverlayScreen, Trip, TripTransaction types
-src/constants.ts                     category list, BRAND/DARK_COLORS/LIGHT_COLORS, gradients
+src/constants.ts                     category list, BRAND/DARK_COLORS/LIGHT_COLORS, gradients, CATEGORY_COLORS
 src/theme.tsx                        ThemeProvider/useTheme (dark/light, persisted)
 src/firebaseConfig.ts                reads EXPO_PUBLIC_FIREBASE_* env vars
 src/firebase.ts / firebase.web.ts    platform-specific Firebase app/auth/db init
@@ -201,14 +216,15 @@ src/recurring.ts                     finds which recurring expenses need this mo
 src/bankNotificationParser.ts        pure text parsing: bank notification → charge/credit, merchant → category
 src/demoData.ts                      sample expenses/budget/goal/trips for demo mode
 src/screens/HomeScreen.tsx           budget meter + add-expense form + category breakdown + expense list
-src/screens/InsightsScreen.tsx       AI insights card + savings-goal/trips shortcut cards
+src/screens/InsightsScreen.tsx       AI insights card + category donut chart + savings-goal/trips shortcut cards
 src/screens/AuthScreen.tsx           sign-in / sign-up form (supports embedded mode, no standalone header)
 src/screens/ProfileScreen.tsx        AuthScreen when signed out, account card when signed in (overlay screen)
 src/screens/TripsScreen.tsx          trip list + trip detail (auth-gated, or demo mode; overlay screen)
 src/screens/SavingsGoalScreen.tsx    full savings-goal card + edit modal (overlay screen)
 src/screens/SettingsScreen.tsx       theme toggle, sign out, delete all data (overlay screen)
+src/screens/MapScreen.tsx / .web.tsx world map (react-native-webview vs plain <iframe>)
 src/components/TopBar.tsx            profile icon (+ dropdown menu) and search icon, shown above the tab content
-src/components/BottomTabBar.tsx      fixed 2-tab bottom bar (בית / תובנות)
+src/components/BottomTabBar.tsx      fixed 3-tab bottom bar (תובנות / בית / מפה)
 src/components/BudgetMeter.tsx       gradient progress bar + set-budget button
 src/components/SavingsGoalCard.tsx   savings goal progress bar + set-goal button
 src/components/AmountInputModal.tsx  generic modal to input/edit an amount (budget, savings goal)
@@ -216,7 +232,8 @@ src/components/AddExpenseForm.tsx    amount/category/note/recurring inputs + add
 src/components/EditExpenseModal.tsx  edit an existing expense's amount/category/note/recurring
 src/components/EmptyExpensesState.tsx animated "no expenses yet" illustration
 src/components/AIInsightsCard.tsx    renders the generated insight strings
-src/components/CategoryBreakdown.tsx per-category totals for the current month
+src/components/CategoryBreakdown.tsx per-category totals for the current month (list form)
+src/components/CategoryDonutChart.tsx per-category totals for the current month (donut chart + legend)
 src/components/ExpenseList.tsx       recent expenses, tap to edit, delete button
 src/components/ConfirmDialog.tsx     custom confirm modal (Alert.alert is a no-op on web)
 src/components/CreateTripModal.tsx   trip creation form (name + budget)

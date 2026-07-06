@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './src/hooks/useAuth';
 import { DemoBudgetDataProvider } from './src/hooks/useDemoBudgetData';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { InsightsScreen } from './src/screens/InsightsScreen';
+import { MapScreen } from './src/screens/MapScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SavingsGoalScreen } from './src/screens/SavingsGoalScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -48,6 +49,7 @@ function AppContent() {
             onOpenSavingsGoal={() => setOverlayScreen('savingsGoal')}
           />
         )}
+        {overlayScreen === null && activeTab === 'map' && <MapScreen />}
         {overlayScreen === 'settings' && <SettingsScreen onBack={closeOverlay} />}
         {overlayScreen === 'account' && <ProfileScreen onBack={closeOverlay} />}
         {overlayScreen === 'trips' && <TripsScreen onBack={closeOverlay} />}

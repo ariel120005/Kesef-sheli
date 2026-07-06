@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AIInsightsCard } from '../components/AIInsightsCard';
+import { CategoryDonutChart } from '../components/CategoryDonutChart';
 import { SHADOW } from '../constants';
 import { isFirebaseConfigured } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
@@ -80,6 +81,8 @@ export function InsightsScreen({ onOpenTrips, onOpenSavingsGoal }: Props) {
         </View>
 
         <AIInsightsCard expenses={expenses} budget={budget} />
+
+        <CategoryDonutChart expenses={expenses} />
 
         <ShortcutCard
           icon="wallet-outline"

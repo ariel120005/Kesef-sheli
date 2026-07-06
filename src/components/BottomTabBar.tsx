@@ -11,9 +11,12 @@ interface Tab {
   iconActive: keyof typeof Ionicons.glyphMap;
 }
 
+// Array order is rightmost → leftmost (the container is row-reverse): תובנות
+// on the right, בית in the middle, מפה on the left.
 const TABS: Tab[] = [
-  { key: 'home', label: 'בית', icon: 'home-outline', iconActive: 'home' },
   { key: 'insights', label: 'תובנות', icon: 'bulb-outline', iconActive: 'bulb' },
+  { key: 'home', label: 'בית', icon: 'home-outline', iconActive: 'home' },
+  { key: 'map', label: 'מפה', icon: 'map-outline', iconActive: 'map' },
 ];
 
 interface Props {

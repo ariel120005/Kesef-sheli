@@ -65,6 +65,23 @@ export const GRADIENTS = {
   over: ['#FB7185', '#E11D48'] as const,
 };
 
+// Categorical colors for per-category charts (donut chart), one per entry in
+// CATEGORIES, in that fixed order — never reassigned/cycled so a category keeps
+// its color everywhere. Chosen as tinted relatives of the app's own turquoise/
+// purple/green/rose brand hues (plus a few more to cover all 8 categories) and
+// validated for CVD-safe adjacent contrast against both the dark and light card
+// surfaces (see the data-viz skill's palette validator).
+export const CATEGORY_COLORS: Record<Category, string> = {
+  מזון: '#0D9488',
+  תחבורה: '#3B82F6',
+  דיור: '#7C3AED',
+  בילויים: '#E11D48',
+  קניות: '#D97706',
+  בריאות: '#059669',
+  חשבונות: '#4F46E5',
+  אחר: '#B45309',
+};
+
 export const SHADOW = {
   shadowColor: '#000000',
   shadowOffset: { width: 0, height: 8 },
