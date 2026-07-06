@@ -1,6 +1,7 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../constants';
+import { COLORS, GRADIENTS, SHADOW } from '../constants';
 import { formatCurrency } from '../utils';
 
 interface Props {
@@ -12,23 +13,32 @@ interface Props {
 export function BudgetMeter({ budget, spent, onEditBudget }: Props) {
   if (budget === null) {
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, SHADOW]}>
         <Text style={styles.title}>תקציב חודשי</Text>
         <Text style={styles.emptyText}>עדיין לא הגדרת תקציב לחודש הזה</Text>
-        <Pressable style={styles.setButton} onPress={onEditBudget}>
-          <Text style={styles.setButtonText}>הגדרת תקציב</Text>
+        <Pressable onPress={onEditBudget}>
+          <LinearGradient
+            colors={GRADIENTS.primary}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.setButton}
+          >
+            <Text style={styles.setButtonText}>הגדרת תקציב</Text>
+          </LinearGradient>
         </Pressable>
       </View>
     );
   }
 
   const ratio = budget > 0 ? spent / budget : 0;
-  const barColor = ratio >= 1 ? COLORS.over : ratio >= 0.7 ? COLORS.warning : COLORS.safe;
+  const zone = ratio >= 1 ? 'over' : ratio >= 0.7 ? 'warning' : 'safe';
+  const zoneColor = COLORS[zone];
+  const barGradient = GRADIENTS[zone];
   const fillPercent = Math.min(ratio, 1) * 100;
   const remaining = budget - spent;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, SHADOW]}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>תקציב חודשי</Text>
         <Pressable onPress={onEditBudget}>
@@ -37,14 +47,19 @@ export function BudgetMeter({ budget, spent, onEditBudget }: Props) {
       </View>
 
       <View style={styles.barTrack}>
-        <View style={[styles.barFill, { width: `${fillPercent}%`, backgroundColor: barColor }]} />
+        <LinearGradient
+          colors={barGradient}
+          start={{ x: 1, y: 0 }}
+          end={{ x: 0, y: 0 }}
+          style={[styles.barFill, { width: `${fillPercent}%` }]}
+        />
       </View>
 
       <View style={styles.amountsRow}>
         <Text style={styles.spentText}>
           {formatCurrency(spent)} מתוך {formatCurrency(budget)}
         </Text>
-        <Text style={[styles.remainingText, { color: barColor }]}>
+        <Text style={[styles.remainingText, { color: zoneColor }]}>
           {remaining >= 0
             ? `נותרו ${formatCurrency(remaining)}`
             : `חריגה של ${formatCurrency(Math.abs(remaining))}`}
@@ -57,63 +72,66 @@ export function BudgetMeter({ budget, spent, onEditBudget }: Props) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   headerRow: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 18,
   },
   title: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     color: COLORS.text,
     textAlign: 'right',
   },
   editLink: {
-    color: COLORS.primary,
+    color: COLORS.turquoise,
     fontSize: 14,
     fontWeight: '600',
   },
   emptyText: {
     color: COLORS.subtext,
     textAlign: 'right',
-    marginBottom: 12,
+    marginBottom: 18,
+    lineHeight: 20,
   },
   setButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingVertical: 10,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
   },
   setButtonText: {
-    color: '#fff',
+    color: '#0A0A0F',
     fontWeight: '700',
+    fontSize: 15,
   },
   barTrack: {
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: COLORS.border,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     overflow: 'hidden',
   },
   barFill: {
     height: '100%',
-    borderRadius: 7,
+    borderRadius: 8,
   },
   amountsRow: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: 14,
   },
   spentText: {
-    color: COLORS.text,
+    color: COLORS.subtext,
     fontSize: 13,
   },
   remainingText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
 });

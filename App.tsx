@@ -34,7 +34,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle="light-content" />
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.header}>כסף שלי</Text>
 
@@ -74,13 +74,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   content: {
-    padding: 16,
+    padding: 22,
+    paddingBottom: 40,
   },
   header: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
     color: COLORS.text,
     textAlign: 'right',
-    marginBottom: 16,
+    marginBottom: 24,
+    letterSpacing: 0.2,
   },
 });

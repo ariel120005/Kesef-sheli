@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../constants';
+import { COLORS, SHADOW } from '../constants';
 import { Expense } from '../types';
 import { formatCurrency, formatDate } from '../utils';
 
@@ -22,7 +22,7 @@ export function ExpenseList({ expenses, onDelete }: Props) {
   };
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, SHADOW]}>
       <Text style={styles.title}>הוצאות אחרונות</Text>
       {sorted.length === 0 ? (
         <Text style={styles.emptyText}>עדיין לא נוספו הוצאות</Text>
@@ -50,16 +50,18 @@ export function ExpenseList({ expenses, onDelete }: Props) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   title: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     color: COLORS.text,
     textAlign: 'right',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   emptyText: {
     color: COLORS.subtext,
@@ -68,13 +70,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
   rowInfo: {
     flex: 1,
-    marginRight: 10,
+    marginRight: 14,
   },
   rowTop: {
     flexDirection: 'row-reverse',
@@ -87,7 +89,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   amount: {
-    color: COLORS.text,
+    color: COLORS.turquoise,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -95,19 +97,19 @@ const styles = StyleSheet.create({
     color: COLORS.subtext,
     fontSize: 13,
     textAlign: 'right',
-    marginTop: 2,
+    marginTop: 4,
   },
   date: {
     color: COLORS.subtext,
     fontSize: 12,
     textAlign: 'right',
-    marginTop: 2,
+    marginTop: 4,
   },
   deleteButton: {
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: '#FEE2E2',
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.deleteBackground,
   },
   deleteButtonText: {
     color: COLORS.danger,

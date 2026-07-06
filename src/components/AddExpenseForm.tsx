@@ -1,6 +1,7 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { CATEGORIES, COLORS } from '../constants';
+import { CATEGORIES, COLORS, GRADIENTS, SHADOW } from '../constants';
 import { Category } from '../types';
 
 interface Props {
@@ -21,7 +22,7 @@ export function AddExpenseForm({ onAdd }: Props) {
   };
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, SHADOW]}>
       <Text style={styles.title}>הוספת הוצאה</Text>
 
       <TextInput
@@ -37,15 +38,23 @@ export function AddExpenseForm({ onAdd }: Props) {
       <View style={styles.categoryWrap}>
         {CATEGORIES.map((cat) => {
           const selected = cat === category;
+          if (selected) {
+            return (
+              <Pressable key={cat} onPress={() => setCategory(cat)}>
+                <LinearGradient
+                  colors={GRADIENTS.primary}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.categoryChip, styles.categoryChipSelected]}
+                >
+                  <Text style={styles.categoryChipTextSelected}>{cat}</Text>
+                </LinearGradient>
+              </Pressable>
+            );
+          }
           return (
-            <Pressable
-              key={cat}
-              onPress={() => setCategory(cat)}
-              style={[styles.categoryChip, selected && styles.categoryChipSelected]}
-            >
-              <Text style={[styles.categoryChipText, selected && styles.categoryChipTextSelected]}>
-                {cat}
-              </Text>
+            <Pressable key={cat} onPress={() => setCategory(cat)} style={styles.categoryChip}>
+              <Text style={styles.categoryChipText}>{cat}</Text>
             </Pressable>
           );
         })}
@@ -60,8 +69,15 @@ export function AddExpenseForm({ onAdd }: Props) {
         textAlign="right"
       />
 
-      <Pressable style={styles.submitButton} onPress={handleSubmit}>
-        <Text style={styles.submitButtonText}>הוספה</Text>
+      <Pressable onPress={handleSubmit}>
+        <LinearGradient
+          colors={GRADIENTS.primary}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.submitButton}
+        >
+          <Text style={styles.submitButtonText}>הוספה</Text>
+        </LinearGradient>
       </Pressable>
     </View>
   );
@@ -70,59 +86,62 @@ export function AddExpenseForm({ onAdd }: Props) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   title: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     color: COLORS.text,
     textAlign: 'right',
-    marginBottom: 12,
+    marginBottom: 18,
   },
   input: {
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 14,
+    padding: 14,
     fontSize: 15,
     color: COLORS.text,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   categoryWrap: {
     flexDirection: 'row-reverse',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 16,
   },
   categoryChip: {
     borderWidth: 1,
     borderColor: COLORS.border,
+    backgroundColor: COLORS.chipBackground,
     borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
   categoryChipSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    borderWidth: 0,
   },
   categoryChipText: {
     color: COLORS.text,
     fontSize: 13,
   },
   categoryChipTextSelected: {
-    color: '#fff',
+    color: '#0A0A0F',
     fontWeight: '700',
+    fontSize: 13,
   },
   submitButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderRadius: 14,
+    paddingVertical: 15,
     alignItems: 'center',
   },
   submitButtonText: {
-    color: '#fff',
+    color: '#0A0A0F',
     fontWeight: '700',
     fontSize: 15,
   },

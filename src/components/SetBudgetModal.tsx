@@ -1,6 +1,7 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { COLORS } from '../constants';
+import { COLORS, GRADIENTS, SHADOW } from '../constants';
 
 interface Props {
   visible: boolean;
@@ -26,7 +27,7 @@ export function SetBudgetModal({ visible, initialValue, onClose, onSave }: Props
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.card}>
+        <View style={[styles.card, SHADOW]}>
           <Text style={styles.title}>הגדרת תקציב חודשי</Text>
           <TextInput
             style={styles.input}
@@ -39,8 +40,15 @@ export function SetBudgetModal({ visible, initialValue, onClose, onSave }: Props
             autoFocus
           />
           <View style={styles.buttonsRow}>
-            <Pressable style={[styles.button, styles.saveButton]} onPress={handleSave}>
-              <Text style={styles.saveButtonText}>שמירה</Text>
+            <Pressable style={styles.button} onPress={handleSave}>
+              <LinearGradient
+                colors={GRADIENTS.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.saveButton}
+              >
+                <Text style={styles.saveButtonText}>שמירה</Text>
+              </LinearGradient>
             </Pressable>
             <Pressable style={[styles.button, styles.cancelButton]} onPress={onClose}>
               <Text style={styles.cancelButtonText}>ביטול</Text>
@@ -55,50 +63,55 @@ export function SetBudgetModal({ visible, initialValue, onClose, onSave }: Props
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'center',
     padding: 24,
   },
   card: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   title: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
     textAlign: 'right',
-    marginBottom: 14,
+    marginBottom: 18,
   },
   input: {
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 14,
+    padding: 14,
     fontSize: 16,
     color: COLORS.text,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   buttonsRow: {
     flexDirection: 'row-reverse',
-    gap: 10,
+    gap: 12,
   },
   button: {
     flex: 1,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
+    borderRadius: 14,
+    overflow: 'hidden',
   },
   saveButton: {
-    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
   saveButtonText: {
-    color: '#fff',
+    color: '#0A0A0F',
     fontWeight: '700',
   },
   cancelButton: {
-    backgroundColor: COLORS.background,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
     borderColor: COLORS.border,
   },

@@ -1,6 +1,7 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../constants';
+import { COLORS, GRADIENTS, SHADOW } from '../constants';
 import { Expense } from '../types';
 import { formatCurrency, isSameMonth } from '../utils';
 
@@ -27,7 +28,7 @@ export function CategoryBreakdown({ expenses }: Props) {
   }, [expenses]);
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, SHADOW]}>
       <Text style={styles.title}>פירוט לפי קטגוריה</Text>
       {rows.length === 0 ? (
         <Text style={styles.emptyText}>אין הוצאות החודש</Text>
@@ -39,7 +40,12 @@ export function CategoryBreakdown({ expenses }: Props) {
               <Text style={styles.amount}>{formatCurrency(row.total)}</Text>
             </View>
             <View style={styles.barTrack}>
-              <View style={[styles.barFill, { width: `${row.percent}%` }]} />
+              <LinearGradient
+                colors={GRADIENTS.primary}
+                start={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 0 }}
+                style={[styles.barFill, { width: `${row.percent}%` }]}
+              />
             </View>
           </View>
         ))
@@ -51,28 +57,30 @@ export function CategoryBreakdown({ expenses }: Props) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   title: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     color: COLORS.text,
     textAlign: 'right',
-    marginBottom: 12,
+    marginBottom: 18,
   },
   emptyText: {
     color: COLORS.subtext,
     textAlign: 'right',
   },
   row: {
-    marginBottom: 10,
+    marginBottom: 16,
   },
   rowHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   category: {
     color: COLORS.text,
@@ -84,14 +92,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   barTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.background,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     overflow: 'hidden',
   },
   barFill: {
     height: '100%',
-    borderRadius: 4,
-    backgroundColor: COLORS.primary,
+    borderRadius: 5,
   },
 });

@@ -17,14 +17,33 @@ export const STORAGE_KEYS = {
 };
 
 export const COLORS = {
-  background: '#F5F6FA',
-  card: '#FFFFFF',
-  text: '#1C1C28',
-  subtext: '#6B7280',
-  border: '#E5E7EB',
-  primary: '#4F46E5',
-  danger: '#DC2626',
-  safe: '#22C55E',
-  warning: '#F59E0B',
-  over: '#DC2626',
+  background: '#0A0A0F',
+  card: '#17171F',
+  cardBorder: 'rgba(255,255,255,0.06)',
+  text: '#F5F5F7',
+  subtext: '#93939F',
+  border: 'rgba(255,255,255,0.09)',
+  primary: '#8B5CF6',
+  turquoise: '#2DD4BF',
+  danger: '#FB7185',
+  safe: '#34D399',
+  warning: '#FBBF24',
+  over: '#FB7185',
+  chipBackground: 'rgba(255,255,255,0.05)',
+  deleteBackground: 'rgba(251,113,133,0.14)',
+};
+
+export const GRADIENTS = {
+  primary: ['#2DD4BF', '#8B5CF6'] as const,
+  safe: ['#34D399', '#2DD4BF'] as const,
+  warning: ['#FBBF24', '#FB923C'] as const,
+  over: ['#FB7185', '#E11D48'] as const,
+};
+
+export const SHADOW = {
+  shadowColor: '#000000',
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.45,
+  shadowRadius: 16,
+  elevation: 8,
 };
