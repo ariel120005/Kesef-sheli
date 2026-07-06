@@ -3,6 +3,11 @@
 # dependencies
 node_modules/
 
+# the web export copies vendor font assets under docs/assets/node_modules/ —
+# unignore those so the GitHub Pages preview build actually ships them
+!docs/assets/node_modules/
+!docs/assets/node_modules/**
+
 # Expo
 .expo/
 dist/
