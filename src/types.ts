@@ -14,6 +14,7 @@ export interface Expense {
   category: Category;
   note: string;
   date: string; // ISO string
+  recurring?: boolean;
 }
 
 export type TabKey = 'profile' | 'home' | 'settings';

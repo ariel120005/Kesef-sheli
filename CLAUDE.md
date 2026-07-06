@@ -93,7 +93,14 @@ module-level constant), so it re-renders correctly on theme toggle.
   since it would need a server-side proxy (e.g. a Firebase Cloud Function) to keep the API key
   off the client; the local heuristics were chosen as the no-cost, no-backend option.
 - Breakdown of the current month's spending by category.
-- Recent expenses list, newest first, with per-item delete (confirm before delete).
+- Recent expenses list, newest first, tap an expense to edit its amount/category/note/recurring
+  flag, per-item delete (confirm before delete). Empty state shows a small floating-coins
+  animation instead of plain text (`src/components/EmptyExpensesState.tsx`).
+- Recurring expenses: marking an expense "הוצאה קבועה כל חודש" doesn't schedule anything
+  server-side — instead, each time expenses are loaded, `src/recurring.ts` checks whether the
+  latest instance of each distinct recurring "series" (matched by category+note+amount) is from
+  a past calendar month, and if so auto-logs a fresh copy dated today. No cron job, no
+  Cloud Function.
 - "Current month" is always the real calendar month (no month picker in the MVP).
 - Settings: light/dark mode toggle, sign out, delete all data (with confirmation).
 
@@ -120,6 +127,7 @@ src/hooks/useExpenses.ts             Firestore-backed expenses (onSnapshot, add,
 src/hooks/useBudget.ts               Firestore-backed monthly budget (onSnapshot, update)
 src/hooks/useSavingsGoal.ts          Firestore-backed savings goal (onSnapshot, update)
 src/insights.ts                      rule-based Hebrew insight generator (no LLM call)
+src/recurring.ts                     finds which recurring expenses need this month's copy
 src/demoData.ts                      sample expenses/budget/goal for demo mode
 src/screens/HomeScreen.tsx           the expense tracker (auth-gated, or demo mode)
 src/screens/AuthScreen.tsx           sign-in / sign-up form
@@ -129,10 +137,12 @@ src/components/BottomTabBar.tsx      fixed 3-tab bottom bar
 src/components/BudgetMeter.tsx       gradient progress bar + set-budget button
 src/components/SavingsGoalCard.tsx   savings goal progress bar + set-goal button
 src/components/AmountInputModal.tsx  generic modal to input/edit an amount (budget, savings goal)
-src/components/AddExpenseForm.tsx    amount/category/note inputs + add button
+src/components/AddExpenseForm.tsx    amount/category/note/recurring inputs + add button
+src/components/EditExpenseModal.tsx  edit an existing expense's amount/category/note/recurring
+src/components/EmptyExpensesState.tsx animated "no expenses yet" illustration
 src/components/AIInsightsCard.tsx    renders the generated insight strings
 src/components/CategoryBreakdown.tsx per-category totals for the current month
-src/components/ExpenseList.tsx       recent expenses with delete
+src/components/ExpenseList.tsx       recent expenses, tap to edit, delete button
 ```
 
 ## Commands
@@ -147,7 +157,6 @@ src/components/ExpenseList.tsx       recent expenses with delete
 - Sharing one account's data with a partner (e.g. a shared household doc instead of per-uid).
 - Upgrading the AI insights from local heuristics to a real Claude API call, via a Firebase Cloud
   Function (Blaze plan) that holds the Anthropic API key server-side.
-- Editing an existing expense.
 - Month picker / history across months.
 - Multiple budgets per category.
 - Charts (currently just a list + a single progress bar).

@@ -4,13 +4,15 @@ import { SHADOW } from '../constants';
 import { ThemeColors, useTheme } from '../theme';
 import { Expense } from '../types';
 import { formatCurrency, formatDate } from '../utils';
+import { EmptyExpensesState } from './EmptyExpensesState';
 
 interface Props {
   expenses: Expense[];
   onDelete: (id: string) => void;
+  onEdit: (expense: Expense) => void;
 }
 
-export function ExpenseList({ expenses, onDelete }: Props) {
+export function ExpenseList({ expenses, onDelete, onEdit }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
 
@@ -29,21 +31,28 @@ export function ExpenseList({ expenses, onDelete }: Props) {
     <View style={[styles.card, SHADOW]}>
       <Text style={styles.title}>הוצאות אחרונות</Text>
       {sorted.length === 0 ? (
-        <Text style={styles.emptyText}>עדיין לא נוספו הוצאות</Text>
+        <EmptyExpensesState />
       ) : (
         sorted.map((expense) => (
           <View key={expense.id} style={styles.row}>
             <Pressable onPress={() => confirmDelete(expense)} style={styles.deleteButton}>
               <Text style={styles.deleteButtonText}>מחק</Text>
             </Pressable>
-            <View style={styles.rowInfo}>
+            <Pressable style={styles.rowInfo} onPress={() => onEdit(expense)}>
               <View style={styles.rowTop}>
-                <Text style={styles.category}>{expense.category}</Text>
+                <View style={styles.categoryRow}>
+                  <Text style={styles.category}>{expense.category}</Text>
+                  {expense.recurring && (
+                    <View style={styles.recurringBadge}>
+                      <Text style={styles.recurringBadgeText}>קבוע</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.amount}>{formatCurrency(expense.amount)}</Text>
               </View>
               {!!expense.note && <Text style={styles.note}>{expense.note}</Text>}
               <Text style={styles.date}>{formatDate(expense.date)}</Text>
-            </View>
+            </Pressable>
           </View>
         ))
       )}
@@ -68,10 +77,6 @@ function getStyles(colors: ThemeColors) {
       textAlign: 'right',
       marginBottom: 8,
     },
-    emptyText: {
-      color: colors.subtext,
-      textAlign: 'right',
-    },
     row: {
       flexDirection: 'row-reverse',
       alignItems: 'center',
@@ -86,12 +91,29 @@ function getStyles(colors: ThemeColors) {
     rowTop: {
       flexDirection: 'row-reverse',
       justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    categoryRow: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 6,
     },
     category: {
       color: colors.text,
       fontSize: 14,
       fontWeight: '700',
       textAlign: 'right',
+    },
+    recurringBadge: {
+      backgroundColor: colors.chipBackground,
+      borderRadius: 8,
+      paddingVertical: 2,
+      paddingHorizontal: 6,
+    },
+    recurringBadgeText: {
+      color: colors.turquoise,
+      fontSize: 10,
+      fontWeight: '700',
     },
     amount: {
       color: colors.turquoise,

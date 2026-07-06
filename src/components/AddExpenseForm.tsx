@@ -1,12 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { CATEGORIES, GRADIENTS, SHADOW } from '../constants';
 import { ThemeColors, useTheme } from '../theme';
 import { Category } from '../types';
 
 interface Props {
-  onAdd: (amount: number, category: Category, note: string) => void;
+  onAdd: (amount: number, category: Category, note: string, recurring: boolean) => void;
 }
 
 export function AddExpenseForm({ onAdd }: Props) {
@@ -15,13 +15,15 @@ export function AddExpenseForm({ onAdd }: Props) {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
   const [note, setNote] = useState('');
+  const [recurring, setRecurring] = useState(false);
 
   const handleSubmit = () => {
     const parsed = Number(amount.replace(',', '.'));
     if (!amount || isNaN(parsed) || parsed <= 0) return;
-    onAdd(parsed, category, note.trim());
+    onAdd(parsed, category, note.trim(), recurring);
     setAmount('');
     setNote('');
+    setRecurring(false);
   };
 
   return (
@@ -71,6 +73,16 @@ export function AddExpenseForm({ onAdd }: Props) {
         onChangeText={setNote}
         textAlign="right"
       />
+
+      <View style={styles.recurringRow}>
+        <Switch
+          value={recurring}
+          onValueChange={setRecurring}
+          trackColor={{ false: colors.chipBackground, true: colors.turquoise }}
+          thumbColor="#FFFFFF"
+        />
+        <Text style={styles.recurringText}>הוצאה קבועה כל חודש</Text>
+      </View>
 
       <Pressable onPress={handleSubmit}>
         <LinearGradient
@@ -138,6 +150,17 @@ function getStyles(colors: ThemeColors) {
       color: '#0A0A0F',
       fontWeight: '700',
       fontSize: 13,
+    },
+    recurringRow: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 16,
+    },
+    recurringText: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '600',
     },
     submitButton: {
       borderRadius: 14,

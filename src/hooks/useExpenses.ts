@@ -6,9 +6,11 @@ import {
   onSnapshot,
   orderBy,
   query,
+  updateDoc,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { db } from '../firebase';
+import { findMissingRecurringInstances } from '../recurring';
 import { Category, Expense } from '../types';
 
 export function useExpenses(uid: string | null) {
@@ -40,14 +42,23 @@ export function useExpenses(uid: string | null) {
   }, [uid]);
 
   const addExpense = useCallback(
-    async (amount: number, category: Category, note: string) => {
+    async (amount: number, category: Category, note: string, recurring: boolean) => {
       if (!uid || !db) return;
       await addDoc(collection(db, 'users', uid, 'expenses'), {
         amount,
         category,
         note,
         date: new Date().toISOString(),
+        recurring,
       });
+    },
+    [uid]
+  );
+
+  const updateExpense = useCallback(
+    async (id: string, amount: number, category: Category, note: string, recurring: boolean) => {
+      if (!uid || !db) return;
+      await updateDoc(doc(db, 'users', uid, 'expenses', id), { amount, category, note, recurring });
     },
     [uid]
   );
@@ -60,5 +71,21 @@ export function useExpenses(uid: string | null) {
     [uid]
   );
 
-  return { expenses, loaded, addExpense, deleteExpense };
+  // Auto-log this month's copy of any recurring expense that hasn't been logged yet.
+  useEffect(() => {
+    if (!loaded || !uid || !db) return;
+    const firestore = db;
+    const missing = findMissingRecurringInstances(expenses);
+    for (const template of missing) {
+      addDoc(collection(firestore, 'users', uid, 'expenses'), {
+        amount: template.amount,
+        category: template.category,
+        note: template.note,
+        date: new Date().toISOString(),
+        recurring: true,
+      });
+    }
+  }, [expenses, loaded, uid]);
+
+  return { expenses, loaded, addExpense, updateExpense, deleteExpense };
 }
