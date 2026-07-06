@@ -6,39 +6,69 @@ import { BudgetMeter } from '../components/BudgetMeter';
 import { CategoryBreakdown } from '../components/CategoryBreakdown';
 import { ExpenseList } from '../components/ExpenseList';
 import { SetBudgetModal } from '../components/SetBudgetModal';
+import { DEMO_BUDGET, DEMO_EXPENSES } from '../demoData';
 import { isFirebaseConfigured } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useBudget } from '../hooks/useBudget';
 import { useExpenses } from '../hooks/useExpenses';
 import { ThemeColors, useTheme } from '../theme';
+import { Category, Expense } from '../types';
 import { isSameMonth } from '../utils';
+
+function useDemoData() {
+  const [expenses, setExpenses] = useState<Expense[]>(DEMO_EXPENSES);
+  const [budget, setBudget] = useState<number | null>(DEMO_BUDGET);
+
+  const addExpense = (amount: number, category: Category, note: string) => {
+    setExpenses((prev) => [
+      { id: `demo-${Date.now()}`, amount, category, note, date: new Date().toISOString() },
+      ...prev,
+    ]);
+  };
+
+  const deleteExpense = (id: string) => {
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  return { expenses, budget, addExpense, deleteExpense, updateBudget: setBudget };
+}
 
 export function HomeScreen() {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const { user } = useAuth();
-  const { expenses, loaded: expensesLoaded, addExpense, deleteExpense } = useExpenses(
-    user?.uid ?? null
-  );
-  const { budget, loaded: budgetLoaded, updateBudget } = useBudget(user?.uid ?? null);
+  const firestoreExpenses = useExpenses(user?.uid ?? null);
+  const firestoreBudget = useBudget(user?.uid ?? null);
+  const demo = useDemoData();
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
+
+  const { expenses, budget, addExpense, deleteExpense, updateBudget, expensesLoaded, budgetLoaded } =
+    isFirebaseConfigured
+      ? {
+          expenses: firestoreExpenses.expenses,
+          budget: firestoreBudget.budget,
+          addExpense: firestoreExpenses.addExpense,
+          deleteExpense: firestoreExpenses.deleteExpense,
+          updateBudget: firestoreBudget.updateBudget,
+          expensesLoaded: firestoreExpenses.loaded,
+          budgetLoaded: firestoreBudget.loaded,
+        }
+      : {
+          expenses: demo.expenses,
+          budget: demo.budget,
+          addExpense: demo.addExpense,
+          deleteExpense: demo.deleteExpense,
+          updateBudget: demo.updateBudget,
+          expensesLoaded: true,
+          budgetLoaded: true,
+        };
 
   const monthlySpent = useMemo(
     () => expenses.filter((e) => isSameMonth(e.date)).reduce((sum, e) => sum + e.amount, 0),
     [expenses]
   );
 
-  if (!isFirebaseConfigured) {
-    return (
-      <View style={styles.messageContainer}>
-        <Ionicons name="cloud-offline-outline" size={44} color={colors.subtext} />
-        <Text style={styles.messageTitle}>Firebase לא מוגדר</Text>
-        <Text style={styles.messageSubtitle}>הוסיפו את פרטי ה-Firebase לקובץ .env</Text>
-      </View>
-    );
-  }
-
-  if (!user) {
+  if (isFirebaseConfigured && !user) {
     return (
       <View style={styles.messageContainer}>
         <Ionicons name="lock-closed-outline" size={44} color={colors.subtext} />
@@ -59,7 +89,20 @@ export function HomeScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.header}>כסף שלי</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.header}>כסף שלי</Text>
+          {!isFirebaseConfigured && (
+            <View style={styles.demoBadge}>
+              <Text style={styles.demoBadgeText}>מצב הדגמה</Text>
+            </View>
+          )}
+        </View>
+
+        {!isFirebaseConfigured && (
+          <Text style={styles.demoNotice}>
+            הנתונים כאן הם לדוגמה בלבד ולא נשמרים — התחברו כדי לעבוד עם נתונים אמיתיים
+          </Text>
+        )}
 
         <BudgetMeter
           budget={budget}
@@ -111,13 +154,35 @@ function getStyles(colors: ThemeColors) {
       padding: 22,
       paddingBottom: 40,
     },
+    headerRow: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 8,
+    },
     header: {
       fontSize: 30,
       fontWeight: '800',
       color: colors.text,
       textAlign: 'right',
-      marginBottom: 24,
       letterSpacing: 0.2,
+    },
+    demoBadge: {
+      backgroundColor: colors.warning,
+      borderRadius: 20,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+    },
+    demoBadgeText: {
+      color: '#0A0A0F',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    demoNotice: {
+      color: colors.subtext,
+      fontSize: 12,
+      textAlign: 'right',
+      marginBottom: 24,
     },
   });
 }
