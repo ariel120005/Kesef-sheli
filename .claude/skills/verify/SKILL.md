@@ -23,18 +23,15 @@ at `/opt/pw-browsers/chromium`; the `playwright` npm package lives at
    `exact: true` matters.
 4. Kill the server when done: `pkill -f "expo start --web"`.
 
-## Known gap: `Alert.alert` is a no-op on web
+## Resolved gap: `Alert.alert` used to be a no-op on web
 
-`react-native-web`'s `Alert` module (`node_modules/react-native-web/src/exports/Alert/index.js`)
-is a stub — `static alert() {}`. It never shows a browser dialog and never
-fires any callback. `ExpenseList.tsx`'s delete-confirmation flow uses
-`Alert.alert(...)`, so **the delete confirmation cannot be exercised through
-the web target** — clicking "מחק" does nothing observable there, which is a
-tooling limitation, not evidence the feature is broken. On real Android/Expo
-Go this is a fully native, well-trodden RN API and should work; if you need to
-actually verify it in this container, either mock/replace `Alert` for the web
-build only, or accept this as an untestable path here and call it out in the
-report.
+`react-native-web`'s `Alert` module is a stub — it never shows a dialog or
+fires a callback — so any confirm flow built on `Alert.alert(...)` was
+silently untestable through this container's web-preview path. Fixed by
+replacing every `Alert.alert` confirm (delete-expense, sign-out,
+delete-all-data) with `src/components/ConfirmDialog.tsx`, a plain themed
+`Modal` that works identically on native and web. Confirm flows are fully
+exercisable through Playwright now — no more caveats needed in reports.
 
 ## Everything else worth checking
 

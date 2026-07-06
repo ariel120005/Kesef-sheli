@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { collection, deleteDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SHADOW } from '../constants';
 import { db } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
@@ -12,39 +13,21 @@ export function SettingsScreen() {
   const styles = getStyles(colors);
   const { user, signOut } = useAuth();
   const [deleting, setDeleting] = useState(false);
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  const handleLogout = () => {
-    Alert.alert('התנתקות', 'להתנתק מהחשבון?', [
-      { text: 'ביטול', style: 'cancel' },
-      { text: 'התנתקות', style: 'destructive', onPress: () => signOut() },
-    ]);
-  };
-
-  const handleDeleteData = () => {
-    Alert.alert(
-      'מחיקת כל הנתונים',
-      'פעולה זו תמחק לצמיתות את כל ההוצאות ואת התקציב שלכם. לא ניתן לבטל.',
-      [
-        { text: 'ביטול', style: 'cancel' },
-        {
-          text: 'מחיקה',
-          style: 'destructive',
-          onPress: async () => {
-            if (!user || !db) return;
-            setDeleting(true);
-            try {
-              const expensesSnapshot = await getDocs(collection(db, 'users', user.uid, 'expenses'));
-              const batch = writeBatch(db);
-              expensesSnapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
-              await batch.commit();
-              await deleteDoc(doc(db, 'users', user.uid));
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleDeleteData = async () => {
+    if (!user || !db) return;
+    setDeleting(true);
+    try {
+      const expensesSnapshot = await getDocs(collection(db, 'users', user.uid, 'expenses'));
+      const batch = writeBatch(db);
+      expensesSnapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
+      await batch.commit();
+      await deleteDoc(doc(db, 'users', user.uid));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -72,14 +55,17 @@ export function SettingsScreen() {
 
       {user && (
         <>
-          <Pressable style={[styles.card, styles.actionCard, SHADOW]} onPress={handleLogout}>
+          <Pressable
+            style={[styles.card, styles.actionCard, SHADOW]}
+            onPress={() => setConfirmingLogout(true)}
+          >
             <Text style={styles.actionText}>התנתקות</Text>
             <Ionicons name="log-out-outline" size={20} color={colors.text} />
           </Pressable>
 
           <Pressable
             style={[styles.card, styles.actionCard, SHADOW]}
-            onPress={handleDeleteData}
+            onPress={() => setConfirmingDelete(true)}
             disabled={deleting}
           >
             <Text style={[styles.actionText, styles.dangerText]}>מחיקת כל הנתונים</Text>
@@ -91,6 +77,30 @@ export function SettingsScreen() {
           </Pressable>
         </>
       )}
+
+      <ConfirmDialog
+        visible={confirmingLogout}
+        title="התנתקות"
+        message="להתנתק מהחשבון?"
+        confirmLabel="התנתקות"
+        onCancel={() => setConfirmingLogout(false)}
+        onConfirm={() => {
+          setConfirmingLogout(false);
+          signOut();
+        }}
+      />
+
+      <ConfirmDialog
+        visible={confirmingDelete}
+        title="מחיקת כל הנתונים"
+        message="פעולה זו תמחק לצמיתות את כל ההוצאות ואת התקציב שלכם. לא ניתן לבטל."
+        confirmLabel="מחיקה"
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={() => {
+          setConfirmingDelete(false);
+          handleDeleteData();
+        }}
+      />
     </View>
   );
 }

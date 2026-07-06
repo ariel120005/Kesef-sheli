@@ -1,9 +1,10 @@
-import React from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SHADOW } from '../constants';
 import { ThemeColors, useTheme } from '../theme';
 import { Expense } from '../types';
 import { formatCurrency, formatDate } from '../utils';
+import { ConfirmDialog } from './ConfirmDialog';
 import { EmptyExpensesState } from './EmptyExpensesState';
 
 interface Props {
@@ -15,17 +16,11 @@ interface Props {
 export function ExpenseList({ expenses, onDelete, onEdit }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
+  const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
 
   const sorted = [...expenses].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
-
-  const confirmDelete = (expense: Expense) => {
-    Alert.alert('מחיקת הוצאה', `למחוק את ההוצאה "${expense.category}" בסך ${formatCurrency(expense.amount)}?`, [
-      { text: 'ביטול', style: 'cancel' },
-      { text: 'מחיקה', style: 'destructive', onPress: () => onDelete(expense.id) },
-    ]);
-  };
 
   return (
     <View style={[styles.card, SHADOW]}>
@@ -35,7 +30,7 @@ export function ExpenseList({ expenses, onDelete, onEdit }: Props) {
       ) : (
         sorted.map((expense) => (
           <View key={expense.id} style={styles.row}>
-            <Pressable onPress={() => confirmDelete(expense)} style={styles.deleteButton}>
+            <Pressable onPress={() => setPendingDelete(expense)} style={styles.deleteButton}>
               <Text style={styles.deleteButtonText}>מחק</Text>
             </Pressable>
             <Pressable style={styles.rowInfo} onPress={() => onEdit(expense)}>
@@ -56,6 +51,22 @@ export function ExpenseList({ expenses, onDelete, onEdit }: Props) {
           </View>
         ))
       )}
+
+      <ConfirmDialog
+        visible={!!pendingDelete}
+        title="מחיקת הוצאה"
+        message={
+          pendingDelete
+            ? `למחוק את ההוצאה "${pendingDelete.category}" בסך ${formatCurrency(pendingDelete.amount)}?`
+            : ''
+        }
+        confirmLabel="מחיקה"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (pendingDelete) onDelete(pendingDelete.id);
+          setPendingDelete(null);
+        }}
+      />
     </View>
   );
 }
