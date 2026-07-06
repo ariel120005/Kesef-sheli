@@ -14,7 +14,7 @@ same account's data.
   `@react-native-firebase`, since that requires a custom native build and won't run in Expo Go.
 - Data: Cloud Firestore, scoped per-user under `users/{uid}`.
 - Local-only state: theme preference (`src/theme.tsx`), persisted via AsyncStorage.
-- No navigation library — three screens are switched by plain state in `App.tsx`, with a custom
+- No navigation library — four screens are switched by plain state in `App.tsx`, with a custom
   bottom tab bar (see below).
 
 ## Firebase setup
@@ -36,7 +36,14 @@ and the UI shows a "Firebase לא מוגדר" message instead of crashing.
 - `users/{uid}` — document with `budget` (monthly budget) and `savingsGoal` (monthly savings
   target) fields.
 - `users/{uid}/expenses/{autoId}` — one document per expense (`amount`, `category`, `note`,
-  `date`).
+  `date`, optional `recurring`, optional `autoDetected`).
+- `users/{uid}/trips/{tripId}` — one document per trip (`name`, `budget`, `createdAt`), a budget
+  kept separate from the monthly budget above.
+- `users/{uid}/trips/{tripId}/transactions/{autoId}` — one document per trip transaction
+  (`type`: `'expense' | 'reimbursement' | 'fee'`, `amount`, `note`, `date`, optional
+  `autoDetected`). `reimbursement` transactions (money received back, e.g. via Bit) offset net
+  trip spending rather than counting as a separate expense; `fee` is its own type so
+  cash-withdrawal fees don't pollute expense totals.
 
 ### Firestore security rules (set these in the Firebase Console)
 
@@ -49,6 +56,12 @@ service cloud.firestore {
       match /expenses/{expenseId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+      match /trips/{tripId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        match /transactions/{transactionId} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
+      }
     }
   }
 }
@@ -56,7 +69,7 @@ service cloud.firestore {
 
 ## App structure & navigation
 
-Three tabs, bottom bar always visible, RTL order (rightmost → leftmost): פרופיל, בית, הגדרות.
+Four tabs, bottom bar always visible, RTL order (rightmost → leftmost): פרופיל, בית, טיולים, הגדרות.
 
 - **בית (Home)** — the expense tracker (budget meter, savings goal, add-expense form, AI
   insights, category breakdown, recent expenses). Requires being signed in; shows a locked/empty
@@ -65,6 +78,11 @@ Three tabs, bottom bar always visible, RTL order (rightmost → leftmost): פר�
   local component state — nothing is persisted, and a "מצב הדגמה" badge makes that clear.
 - **פרופיל (Profile)** — shows the email/password sign-in-or-sign-up form
   (`src/screens/AuthScreen.tsx`) when signed out, or a simple account card (email) when signed in.
+- **טיולים (Trips)** — trip mode (`src/screens/TripsScreen.tsx`): a list of trips (each with its
+  own budget, separate from the monthly budget) and a detail view per trip showing gross spend,
+  total reimbursed, net spend, and budget remaining (`TripStatsCard.tsx`), plus a form to add
+  expense/reimbursement/fee transactions and a list to edit/delete them. Same auth-gated /
+  demo-mode split as Home, with its own local-state mirror hook when Firebase isn't configured.
 - **הגדרות (Settings)** — light/dark theme toggle (always available), plus sign-out and
   delete-all-data (only shown when signed in).
 
@@ -103,6 +121,16 @@ module-level constant), so it re-renders correctly on theme toggle.
   Cloud Function.
 - "Current month" is always the real calendar month (no month picker in the MVP).
 - Settings: light/dark mode toggle, sign out, delete all data (with confirmation).
+- Trip mode: create a trip with a name and its own budget (separate from the monthly budget).
+  Inside a trip, log `expense` transactions as normal, `fee` transactions for cash-withdrawal
+  fees (kept out of expense category totals), and `reimbursement` transactions for money
+  received back (e.g. via Bit) — reimbursements offset net spend rather than counting as an
+  expense. The trip screen shows gross spend, total reimbursed, net spend, and remaining budget.
+- Bank-notification auto-detection basis: `src/bankNotificationParser.ts` has pure, dependency-free
+  functions (`parseBankNotification`, `guessCategoryFromMerchant`) that parse Hebrew bank-app
+  notification text into a charge (→ expense, category guessed from merchant) or a credit (→
+  reimbursement, same concept as trip mode). This is parsing logic only — see "Notes for future
+  work" for what's still needed to actually read notifications on-device.
 
 ## RTL approach
 
@@ -116,7 +144,7 @@ icon/button with a label. This keeps behavior predictable when testing live in E
 
 ```
 App.tsx                              ThemeProvider + AuthProvider + tab switching
-src/types.ts                         Expense, Category, TabKey types
+src/types.ts                         Expense, Category, TabKey, Trip, TripTransaction types
 src/constants.ts                     category list, BRAND/DARK_COLORS/LIGHT_COLORS, gradients
 src/theme.tsx                        ThemeProvider/useTheme (dark/light, persisted)
 src/firebaseConfig.ts                reads EXPO_PUBLIC_FIREBASE_* env vars
@@ -126,14 +154,18 @@ src/hooks/useAuth.tsx                AuthProvider/useAuth (sign up/in/out, curre
 src/hooks/useExpenses.ts             Firestore-backed expenses (onSnapshot, add, delete)
 src/hooks/useBudget.ts               Firestore-backed monthly budget (onSnapshot, update)
 src/hooks/useSavingsGoal.ts          Firestore-backed savings goal (onSnapshot, update)
+src/hooks/useTrips.ts                Firestore-backed trips (onSnapshot, add, delete)
+src/hooks/useTripTransactions.ts     Firestore-backed transactions for one trip (onSnapshot, add, update, delete)
 src/insights.ts                      rule-based Hebrew insight generator (no LLM call)
 src/recurring.ts                     finds which recurring expenses need this month's copy
-src/demoData.ts                      sample expenses/budget/goal for demo mode
+src/bankNotificationParser.ts        pure text parsing: bank notification → charge/credit, merchant → category
+src/demoData.ts                      sample expenses/budget/goal/trips for demo mode
 src/screens/HomeScreen.tsx           the expense tracker (auth-gated, or demo mode)
 src/screens/AuthScreen.tsx           sign-in / sign-up form
 src/screens/ProfileScreen.tsx        AuthScreen when signed out, account card when signed in
+src/screens/TripsScreen.tsx          trip list + trip detail (auth-gated, or demo mode)
 src/screens/SettingsScreen.tsx       theme toggle, sign out, delete all data
-src/components/BottomTabBar.tsx      fixed 3-tab bottom bar
+src/components/BottomTabBar.tsx      fixed 4-tab bottom bar
 src/components/BudgetMeter.tsx       gradient progress bar + set-budget button
 src/components/SavingsGoalCard.tsx   savings goal progress bar + set-goal button
 src/components/AmountInputModal.tsx  generic modal to input/edit an amount (budget, savings goal)
@@ -143,6 +175,13 @@ src/components/EmptyExpensesState.tsx animated "no expenses yet" illustration
 src/components/AIInsightsCard.tsx    renders the generated insight strings
 src/components/CategoryBreakdown.tsx per-category totals for the current month
 src/components/ExpenseList.tsx       recent expenses, tap to edit, delete button
+src/components/ConfirmDialog.tsx     custom confirm modal (Alert.alert is a no-op on web)
+src/components/CreateTripModal.tsx   trip creation form (name + budget)
+src/components/TripCard.tsx          trip list-item summary (gross/net/budget bar)
+src/components/TripStatsCard.tsx     trip detail stats (gross, reimbursed, net, budget, remaining)
+src/components/AddTripTransactionForm.tsx  type chips (הוצאה/החזר/עמלה) + amount/note + add
+src/components/TripTransactionList.tsx     trip transactions list, tap to edit, delete button
+src/components/EditTripTransactionModal.tsx edit an existing trip transaction's type/amount/note
 ```
 
 ## Commands
@@ -161,3 +200,17 @@ src/components/ExpenseList.tsx       recent expenses, tap to edit, delete button
 - Multiple budgets per category.
 - Charts (currently just a list + a single progress bar).
 - Password reset / email verification.
+- **Bank-notification auto-detection, native wiring (Android only).** The text-parsing basis
+  (`src/bankNotificationParser.ts`) is done and unit-testable today, but reading real notifications
+  requires native code this managed-workflow project doesn't have yet:
+  1. `expo prebuild` (or an EAS config plugin) to generate the `android/` project, since a
+     `NotificationListenerService` is native-only — Expo Go can't load it.
+  2. A Kotlin/Java `NotificationListenerService` declared in `AndroidManifest.xml` with the
+     `BIND_NOTIFICATION_LISTENER_SERVICE` permission, filtering to the banking app's package name.
+  3. The user must manually grant notification access in Android Settings → apps with notification
+     access — this cannot be requested/auto-granted like a normal runtime permission.
+  4. A native module (e.g. via `NativeEventEmitter`) bridging each captured notification's text to
+     JS, which then calls `parseBankNotification` and `guessCategoryFromMerchant` and writes an
+     expense/reimbursement with `autoDetected: true`.
+  5. Since Expo Go doesn't support custom native modules, building and testing this needs an
+     EAS-built development client (`eas build --profile development`), not `npm start`.

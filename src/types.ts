@@ -15,6 +15,25 @@ export interface Expense {
   note: string;
   date: string; // ISO string
   recurring?: boolean;
+  autoDetected?: boolean;
 }
 
-export type TabKey = 'profile' | 'home' | 'settings';
+export type TabKey = 'profile' | 'home' | 'trips' | 'settings';
+
+export interface Trip {
+  id: string;
+  name: string;
+  budget: number;
+  createdAt: string; // ISO string
+}
+
+export type TripTransactionType = 'expense' | 'reimbursement' | 'fee';
+
+export interface TripTransaction {
+  id: string;
+  type: TripTransactionType;
+  amount: number;
+  note: string;
+  date: string; // ISO string
+  autoDetected?: boolean;
+}

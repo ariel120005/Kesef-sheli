@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './src/hooks/useAuth';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { TripsScreen } from './src/screens/TripsScreen';
 import { ThemeColors, ThemeProvider, useTheme } from './src/theme';
 import { TabKey } from './src/types';
 
@@ -33,6 +34,7 @@ function AppContent() {
 
         {activeTab === 'home' && <HomeScreen />}
         {activeTab === 'profile' && <ProfileScreen />}
+        {activeTab === 'trips' && <TripsScreen />}
         {activeTab === 'settings' && <SettingsScreen />}
       </SafeAreaView>
 
