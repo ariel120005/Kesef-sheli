@@ -71,22 +71,48 @@ service cloud.firestore {
 
 ## App structure & navigation
 
-Four tabs, bottom bar always visible, RTL order (rightmost → leftmost): פרופיל, בית, טיולים, הגדרות.
+Two bottom tabs, bar always visible, RTL order (rightmost → leftmost): בית, תובנות. `App.tsx`
+also renders a fixed top row (`src/components/TopBar.tsx`) above the tab content — a profile icon
+(rightmost) that opens a dropdown menu, and a search icon next to it (currently a UI placeholder
+with no behavior wired up yet). Settings, the account/sign-in screen, Trips, and the Savings Goal
+screen are **not** tabs — they're `OverlayScreen`s (`src/types.ts`) reached only via the profile
+dropdown menu (or, for Trips/Savings Goal, via a shortcut card on the Insights tab), each with its
+own back button that returns to whichever tab was active. `App.tsx` holds `activeTab` (the two
+bottom tabs) and `overlayScreen` (which of the four, or `null`) as separate state — switching
+bottom tabs always clears any open overlay screen.
 
-- **בית (Home)** — the expense tracker (budget meter, savings goal, add-expense form, AI
-  insights, category breakdown, recent expenses). Requires being signed in; shows a locked/empty
-  state otherwise. When Firebase isn't configured at all (e.g. the public GitHub Pages preview),
-  it instead shows a fully interactive **demo mode** (`src/demoData.ts`) with sample data held in
-  local component state — nothing is persisted, and a "מצב הדגמה" badge makes that clear.
-- **פרופיל (Profile)** — shows the email/password sign-in-or-sign-up form
-  (`src/screens/AuthScreen.tsx`) when signed out, or a simple account card (email) when signed in.
-- **טיולים (Trips)** — trip mode (`src/screens/TripsScreen.tsx`): a list of trips (each with its
-  own budget, separate from the monthly budget) and a detail view per trip showing gross spend,
-  total reimbursed, net spend, and budget remaining (`TripStatsCard.tsx`), plus a form to add
-  expense/reimbursement/fee transactions and a list to edit/delete them. Same auth-gated /
-  demo-mode split as Home, with its own local-state mirror hook when Firebase isn't configured.
-- **הגדרות (Settings)** — light/dark theme toggle (always available), plus sign-out and
-  delete-all-data (only shown when signed in).
+- **בית (Home)** — the expense tracker's core loop: budget meter (view/edit the monthly budget),
+  add-expense form, category breakdown, and the recent-expenses list. Requires being signed in;
+  shows a locked/empty state otherwise. When Firebase isn't configured at all (e.g. the public
+  GitHub Pages preview), it instead shows a fully interactive **demo mode** (`src/demoData.ts`)
+  with sample data, and a "מצב הדגמה" badge makes that clear.
+- **תובנות (Insights)** — the AI insights card, plus two small shortcut cards ("יעד חיסכון" and
+  "טיולים") that each open their respective `OverlayScreen` on tap. Same demo-mode data as Home —
+  see `src/hooks/useDemoBudgetData.tsx` below.
+- **Profile dropdown menu** (opened from the top bar's profile icon) — rows: הגדרות, then
+  התחברות/החשבון שלי (label flips once signed in), then טיולים and יעד חיסכון. The latter two are
+  per-account features: in demo mode they're always shown (there's no sign-in concept there), but
+  in real Firebase mode they're hidden from the menu until the user is actually signed in (the
+  Insights-tab shortcut cards still work either way, just showing the same locked state as Home
+  when signed out).
+  - **הגדרות (Settings)** — light/dark theme toggle (always available), plus sign-out and
+    delete-all-data (only shown when signed in).
+  - **התחברות / החשבון שלי (Profile)** — shows the email/password sign-in-or-sign-up form
+    (`src/screens/AuthScreen.tsx`, rendered `embedded` to skip its standalone header) when signed
+    out, or a simple account card (email) when signed in.
+  - **טיולים (Trips)** — trip mode (`src/screens/TripsScreen.tsx`): a list of trips (each with
+    its own budget, separate from the monthly budget) and a detail view per trip showing gross
+    spend, total reimbursed, net spend, and budget remaining (`TripStatsCard.tsx`), plus a form to
+    add expense/reimbursement/fee transactions and a list to edit/delete them. Same auth-gated /
+    demo-mode split as Home, with its own local-state mirror hook when Firebase isn't configured.
+  - **יעד חיסכון (Savings Goal)** — `src/screens/SavingsGoalScreen.tsx`, the full `SavingsGoalCard`
+    (moved out of Home) plus its edit modal.
+
+Home, Insights, and the Savings Goal screen all need the same budget/expenses/savings-goal
+numbers to stay in sync in demo mode now that they're separate screens, so that demo state lives
+in one shared `DemoBudgetDataProvider` (`src/hooks/useDemoBudgetData.tsx`, wrapping the whole app
+in `App.tsx`) instead of being duplicated per screen — real Firebase mode doesn't need this since
+every screen's Firestore hook already reads/writes the same underlying document.
 
 ## Theming
 
@@ -155,8 +181,8 @@ icon/button with a label. This keeps behavior predictable when testing live in E
 ## Project structure
 
 ```
-App.tsx                              ThemeProvider + AuthProvider + tab switching
-src/types.ts                         Expense, Category, TabKey, Trip, TripTransaction types
+App.tsx                              ThemeProvider + AuthProvider + DemoBudgetDataProvider + tab/overlay switching
+src/types.ts                         Expense, Category, TabKey, OverlayScreen, Trip, TripTransaction types
 src/constants.ts                     category list, BRAND/DARK_COLORS/LIGHT_COLORS, gradients
 src/theme.tsx                        ThemeProvider/useTheme (dark/light, persisted)
 src/firebaseConfig.ts                reads EXPO_PUBLIC_FIREBASE_* env vars
@@ -167,18 +193,22 @@ src/hooks/useAuth.tsx                AuthProvider/useAuth (sign up/in/out, curre
 src/hooks/useExpenses.ts             Firestore-backed expenses (onSnapshot, add, delete)
 src/hooks/useBudget.ts               Firestore-backed monthly budget (onSnapshot, update)
 src/hooks/useSavingsGoal.ts          Firestore-backed savings goal (onSnapshot, update)
+src/hooks/useDemoBudgetData.tsx      DemoBudgetDataProvider/useDemoBudgetData — shared demo expenses/budget/goal state
 src/hooks/useTrips.ts                Firestore-backed trips (onSnapshot, add, delete)
 src/hooks/useTripTransactions.ts     Firestore-backed transactions for one trip (onSnapshot, add, update, delete)
 src/insights.ts                      rule-based Hebrew insight generator (no LLM call)
 src/recurring.ts                     finds which recurring expenses need this month's copy
 src/bankNotificationParser.ts        pure text parsing: bank notification → charge/credit, merchant → category
 src/demoData.ts                      sample expenses/budget/goal/trips for demo mode
-src/screens/HomeScreen.tsx           the expense tracker (auth-gated, or demo mode)
-src/screens/AuthScreen.tsx           sign-in / sign-up form
-src/screens/ProfileScreen.tsx        AuthScreen when signed out, account card when signed in
-src/screens/TripsScreen.tsx          trip list + trip detail (auth-gated, or demo mode)
-src/screens/SettingsScreen.tsx       theme toggle, sign out, delete all data
-src/components/BottomTabBar.tsx      fixed 4-tab bottom bar
+src/screens/HomeScreen.tsx           budget meter + add-expense form + category breakdown + expense list
+src/screens/InsightsScreen.tsx       AI insights card + savings-goal/trips shortcut cards
+src/screens/AuthScreen.tsx           sign-in / sign-up form (supports embedded mode, no standalone header)
+src/screens/ProfileScreen.tsx        AuthScreen when signed out, account card when signed in (overlay screen)
+src/screens/TripsScreen.tsx          trip list + trip detail (auth-gated, or demo mode; overlay screen)
+src/screens/SavingsGoalScreen.tsx    full savings-goal card + edit modal (overlay screen)
+src/screens/SettingsScreen.tsx       theme toggle, sign out, delete all data (overlay screen)
+src/components/TopBar.tsx            profile icon (+ dropdown menu) and search icon, shown above the tab content
+src/components/BottomTabBar.tsx      fixed 2-tab bottom bar (בית / תובנות)
 src/components/BudgetMeter.tsx       gradient progress bar + set-budget button
 src/components/SavingsGoalCard.tsx   savings goal progress bar + set-goal button
 src/components/AmountInputModal.tsx  generic modal to input/edit an amount (budget, savings goal)

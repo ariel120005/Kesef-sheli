@@ -8,7 +8,11 @@ import { db } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { ThemeColors, useTheme } from '../theme';
 
-export function SettingsScreen() {
+interface Props {
+  onBack: () => void;
+}
+
+export function SettingsScreen({ onBack }: Props) {
   const { colors, mode, toggleTheme } = useTheme();
   const styles = getStyles(colors);
   const { user, signOut } = useAuth();
@@ -32,7 +36,12 @@ export function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>הגדרות</Text>
+      <View style={styles.headerRow}>
+        <Pressable onPress={onBack} style={styles.backButton} hitSlop={8}>
+          <Ionicons name="chevron-forward" size={24} color={colors.text} />
+        </Pressable>
+        <Text style={styles.header}>הגדרות</Text>
+      </View>
 
       <View style={[styles.card, SHADOW]}>
         <View style={styles.row}>
@@ -111,12 +120,21 @@ function getStyles(colors: ThemeColors) {
       flex: 1,
       padding: 22,
     },
+    headerRow: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 24,
+    },
+    backButton: {
+      borderRadius: 10,
+      padding: 4,
+    },
     header: {
       fontSize: 30,
       fontWeight: '800',
       color: colors.text,
       textAlign: 'right',
-      marginBottom: 24,
       letterSpacing: 0.2,
     },
     card: {

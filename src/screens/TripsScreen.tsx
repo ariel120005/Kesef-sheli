@@ -103,7 +103,11 @@ function FirestoreTripCard({
   return <TripCard trip={trip} transactions={transactions} onPress={onPress} onDelete={onDelete} />;
 }
 
-export function TripsScreen() {
+interface Props {
+  onBack: () => void;
+}
+
+export function TripsScreen({ onBack }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const { user } = useAuth();
@@ -174,10 +178,18 @@ export function TripsScreen() {
 
   if (isFirebaseConfigured && !user) {
     return (
-      <View style={styles.messageContainer}>
-        <Ionicons name="lock-closed-outline" size={44} color={colors.subtext} />
-        <Text style={styles.messageTitle}>יש להתחבר כדי לראות את הנתונים</Text>
-        <Text style={styles.messageSubtitle}>עברו לטאב "פרופיל" כדי להתחבר או להירשם</Text>
+      <View style={styles.container}>
+        <View style={styles.headerRow}>
+          <Pressable onPress={onBack} style={styles.backButton} hitSlop={8}>
+            <Ionicons name="chevron-forward" size={24} color={colors.text} />
+          </Pressable>
+          <Text style={styles.header}>טיולים</Text>
+        </View>
+        <View style={styles.messageContainer}>
+          <Ionicons name="lock-closed-outline" size={44} color={colors.subtext} />
+          <Text style={styles.messageTitle}>יש להתחבר כדי לראות את הנתונים</Text>
+          <Text style={styles.messageSubtitle}>לחצו על אייקון הפרופיל כדי להתחבר או להירשם</Text>
+        </View>
       </View>
     );
   }
@@ -225,6 +237,9 @@ export function TripsScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
+          <Pressable onPress={onBack} style={styles.backButton} hitSlop={8}>
+            <Ionicons name="chevron-forward" size={24} color={colors.text} />
+          </Pressable>
           <Text style={styles.header}>טיולים</Text>
           {!isFirebaseConfigured && (
             <View style={styles.demoBadge}>

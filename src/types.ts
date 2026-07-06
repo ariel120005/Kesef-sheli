@@ -24,7 +24,9 @@ export interface Expense {
   originalCurrency?: Currency | null;
 }
 
-export type TabKey = 'profile' | 'home' | 'trips' | 'settings';
+export type TabKey = 'home' | 'insights';
+
+export type OverlayScreen = 'settings' | 'account' | 'trips' | 'savingsGoal';
 
 export interface Trip {
   id: string;

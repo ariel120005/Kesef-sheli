@@ -1,102 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AddExpenseForm } from '../components/AddExpenseForm';
-import { AIInsightsCard } from '../components/AIInsightsCard';
 import { AmountInputModal } from '../components/AmountInputModal';
 import { BudgetMeter } from '../components/BudgetMeter';
 import { CategoryBreakdown } from '../components/CategoryBreakdown';
 import { EditExpenseModal } from '../components/EditExpenseModal';
 import { ExpenseList } from '../components/ExpenseList';
-import { SavingsGoalCard } from '../components/SavingsGoalCard';
-import { DEMO_BUDGET, DEMO_EXPENSES, DEMO_SAVINGS_GOAL } from '../demoData';
 import { isFirebaseConfigured } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useBudget } from '../hooks/useBudget';
+import { useDemoBudgetData } from '../hooks/useDemoBudgetData';
 import { useExpenses } from '../hooks/useExpenses';
-import { useSavingsGoal } from '../hooks/useSavingsGoal';
-import { findMissingRecurringInstances } from '../recurring';
 import { ThemeColors, useTheme } from '../theme';
-import { Category, Currency, Expense } from '../types';
+import { Expense } from '../types';
 import { isSameMonth } from '../utils';
-
-function useDemoData() {
-  const [expenses, setExpenses] = useState<Expense[]>(DEMO_EXPENSES);
-  const [budget, setBudget] = useState<number | null>(DEMO_BUDGET);
-  const [savingsGoal, setSavingsGoal] = useState<number | null>(DEMO_SAVINGS_GOAL);
-
-  const addExpense = (
-    amount: number,
-    category: Category,
-    note: string,
-    recurring: boolean,
-    originalAmount: number | null = null,
-    originalCurrency: Currency | null = null
-  ) => {
-    setExpenses((prev) => [
-      {
-        id: `demo-${Date.now()}`,
-        amount,
-        category,
-        note,
-        date: new Date().toISOString(),
-        recurring,
-        originalAmount,
-        originalCurrency,
-      },
-      ...prev,
-    ]);
-  };
-
-  const updateExpense = (
-    id: string,
-    amount: number,
-    category: Category,
-    note: string,
-    recurring: boolean,
-    originalAmount: number | null = null,
-    originalCurrency: Currency | null = null
-  ) => {
-    setExpenses((prev) =>
-      prev.map((e) =>
-        e.id === id ? { ...e, amount, category, note, recurring, originalAmount, originalCurrency } : e
-      )
-    );
-  };
-
-  const deleteExpense = (id: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
-  };
-
-  // Auto-log this month's copy of any recurring demo expense, same as the real Firestore hook.
-  useEffect(() => {
-    const missing = findMissingRecurringInstances(expenses);
-    if (missing.length === 0) return;
-    setExpenses((prev) => [
-      ...missing.map((template) => ({
-        id: `demo-${Date.now()}-${template.id}`,
-        amount: template.amount,
-        category: template.category,
-        note: template.note,
-        date: new Date().toISOString(),
-        recurring: true,
-      })),
-      ...prev,
-    ]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expenses]);
-
-  return {
-    expenses,
-    budget,
-    savingsGoal,
-    addExpense,
-    updateExpense,
-    deleteExpense,
-    updateBudget: setBudget,
-    updateSavingsGoal: setSavingsGoal,
-  };
-}
 
 export function HomeScreen() {
   const { colors } = useTheme();
@@ -104,45 +22,37 @@ export function HomeScreen() {
   const { user } = useAuth();
   const firestoreExpenses = useExpenses(user?.uid ?? null);
   const firestoreBudget = useBudget(user?.uid ?? null);
-  const firestoreSavingsGoal = useSavingsGoal(user?.uid ?? null);
-  const demo = useDemoData();
+  const demo = useDemoBudgetData();
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
-  const [savingsModalVisible, setSavingsModalVisible] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   const {
     expenses,
     budget,
-    savingsGoal,
     addExpense,
     updateExpense,
     deleteExpense,
     updateBudget,
-    updateSavingsGoal,
     expensesLoaded,
     budgetLoaded,
   } = isFirebaseConfigured
     ? {
         expenses: firestoreExpenses.expenses,
         budget: firestoreBudget.budget,
-        savingsGoal: firestoreSavingsGoal.savingsGoal,
         addExpense: firestoreExpenses.addExpense,
         updateExpense: firestoreExpenses.updateExpense,
         deleteExpense: firestoreExpenses.deleteExpense,
         updateBudget: firestoreBudget.updateBudget,
-        updateSavingsGoal: firestoreSavingsGoal.updateSavingsGoal,
         expensesLoaded: firestoreExpenses.loaded,
         budgetLoaded: firestoreBudget.loaded,
       }
     : {
         expenses: demo.expenses,
         budget: demo.budget,
-        savingsGoal: demo.savingsGoal,
         addExpense: demo.addExpense,
         updateExpense: demo.updateExpense,
         deleteExpense: demo.deleteExpense,
         updateBudget: demo.updateBudget,
-        updateSavingsGoal: demo.updateSavingsGoal,
         expensesLoaded: true,
         budgetLoaded: true,
       };
@@ -157,7 +67,7 @@ export function HomeScreen() {
       <View style={styles.messageContainer}>
         <Ionicons name="lock-closed-outline" size={44} color={colors.subtext} />
         <Text style={styles.messageTitle}>יש להתחבר כדי לראות את הנתונים</Text>
-        <Text style={styles.messageSubtitle}>עברו לטאב "פרופיל" כדי להתחבר או להירשם</Text>
+        <Text style={styles.messageSubtitle}>לחצו על אייקון הפרופיל כדי להתחבר או להירשם</Text>
       </View>
     );
   }
@@ -194,16 +104,7 @@ export function HomeScreen() {
           onEditBudget={() => setBudgetModalVisible(true)}
         />
 
-        <SavingsGoalCard
-          goal={savingsGoal}
-          budget={budget}
-          spent={monthlySpent}
-          onEditGoal={() => setSavingsModalVisible(true)}
-        />
-
         <AddExpenseForm onAdd={addExpense} />
-
-        <AIInsightsCard expenses={expenses} budget={budget} />
 
         <CategoryBreakdown expenses={expenses} />
 
@@ -217,15 +118,6 @@ export function HomeScreen() {
         initialValue={budget}
         onClose={() => setBudgetModalVisible(false)}
         onSave={updateBudget}
-      />
-
-      <AmountInputModal
-        visible={savingsModalVisible}
-        title="הגדרת יעד חיסכון"
-        placeholder="לדוגמה: 500"
-        initialValue={savingsGoal}
-        onClose={() => setSavingsModalVisible(false)}
-        onSave={updateSavingsGoal}
       />
 
       <EditExpenseModal

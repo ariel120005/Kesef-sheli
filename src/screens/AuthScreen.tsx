@@ -37,7 +37,11 @@ function translateAuthError(code: string): string {
   }
 }
 
-export function AuthScreen() {
+interface Props {
+  embedded?: boolean;
+}
+
+export function AuthScreen({ embedded = false }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const { signIn, signUp } = useAuth();
@@ -84,7 +88,7 @@ export function AuthScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.header}>כסף שלי</Text>
+        {!embedded && <Text style={styles.header}>כסף שלי</Text>}
 
         <View style={[styles.card, SHADOW]}>
           <Text style={styles.title}>{mode === 'signIn' ? 'התחברות' : 'הרשמה'}</Text>

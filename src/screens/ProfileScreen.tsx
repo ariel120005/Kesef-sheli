@@ -1,30 +1,40 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SHADOW } from '../constants';
 import { useAuth } from '../hooks/useAuth';
 import { ThemeColors, useTheme } from '../theme';
 import { AuthScreen } from './AuthScreen';
 
-export function ProfileScreen() {
+interface Props {
+  onBack: () => void;
+}
+
+export function ProfileScreen({ onBack }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const { user } = useAuth();
 
-  if (!user) {
-    return <AuthScreen />;
-  }
-
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>פרופיל</Text>
-      <View style={[styles.card, SHADOW]}>
-        <View style={styles.avatar}>
-          <Ionicons name="person" size={32} color={colors.turquoise} />
-        </View>
-        <Text style={styles.connectedLabel}>מחוברים כ-</Text>
-        <Text style={styles.email}>{user.email}</Text>
+      <View style={styles.headerRow}>
+        <Pressable onPress={onBack} style={styles.backButton} hitSlop={8}>
+          <Ionicons name="chevron-forward" size={24} color={colors.text} />
+        </Pressable>
+        <Text style={styles.header}>{user ? 'החשבון שלי' : 'התחברות'}</Text>
       </View>
+
+      {!user ? (
+        <AuthScreen embedded />
+      ) : (
+        <View style={[styles.card, SHADOW]}>
+          <View style={styles.avatar}>
+            <Ionicons name="person" size={32} color={colors.turquoise} />
+          </View>
+          <Text style={styles.connectedLabel}>מחוברים כ-</Text>
+          <Text style={styles.email}>{user.email}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -33,20 +43,31 @@ function getStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
       flex: 1,
+    },
+    headerRow: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 10,
       padding: 22,
+      paddingBottom: 0,
+      marginBottom: 24,
+    },
+    backButton: {
+      borderRadius: 10,
+      padding: 4,
     },
     header: {
       fontSize: 30,
       fontWeight: '800',
       color: colors.text,
       textAlign: 'right',
-      marginBottom: 24,
       letterSpacing: 0.2,
     },
     card: {
       backgroundColor: colors.card,
       borderRadius: 24,
       padding: 24,
+      marginHorizontal: 22,
       borderWidth: 1,
       borderColor: colors.cardBorder,
       alignItems: 'center',
