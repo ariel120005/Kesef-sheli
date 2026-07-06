@@ -17,7 +17,7 @@ import { useExpenses } from '../hooks/useExpenses';
 import { useSavingsGoal } from '../hooks/useSavingsGoal';
 import { findMissingRecurringInstances } from '../recurring';
 import { ThemeColors, useTheme } from '../theme';
-import { Category, Expense } from '../types';
+import { Category, Currency, Expense } from '../types';
 import { isSameMonth } from '../utils';
 
 function useDemoData() {
@@ -25,9 +25,25 @@ function useDemoData() {
   const [budget, setBudget] = useState<number | null>(DEMO_BUDGET);
   const [savingsGoal, setSavingsGoal] = useState<number | null>(DEMO_SAVINGS_GOAL);
 
-  const addExpense = (amount: number, category: Category, note: string, recurring: boolean) => {
+  const addExpense = (
+    amount: number,
+    category: Category,
+    note: string,
+    recurring: boolean,
+    originalAmount: number | null = null,
+    originalCurrency: Currency | null = null
+  ) => {
     setExpenses((prev) => [
-      { id: `demo-${Date.now()}`, amount, category, note, date: new Date().toISOString(), recurring },
+      {
+        id: `demo-${Date.now()}`,
+        amount,
+        category,
+        note,
+        date: new Date().toISOString(),
+        recurring,
+        originalAmount,
+        originalCurrency,
+      },
       ...prev,
     ]);
   };
@@ -37,9 +53,15 @@ function useDemoData() {
     amount: number,
     category: Category,
     note: string,
-    recurring: boolean
+    recurring: boolean,
+    originalAmount: number | null = null,
+    originalCurrency: Currency | null = null
   ) => {
-    setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, amount, category, note, recurring } : e)));
+    setExpenses((prev) =>
+      prev.map((e) =>
+        e.id === id ? { ...e, amount, category, note, recurring, originalAmount, originalCurrency } : e
+      )
+    );
   };
 
   const deleteExpense = (id: string) => {

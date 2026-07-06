@@ -16,7 +16,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useTripTransactions } from '../hooks/useTripTransactions';
 import { useTrips } from '../hooks/useTrips';
 import { ThemeColors, useTheme } from '../theme';
-import { Trip, TripTransaction, TripTransactionType } from '../types';
+import { Currency, Trip, TripTransaction, TripTransactionType } from '../types';
 
 function useDemoTripsData() {
   const [trips, setTrips] = useState<Trip[]>(DEMO_TRIPS);
@@ -38,13 +38,22 @@ function useDemoTripsData() {
     });
   };
 
-  const addTransaction = (tripId: string, type: TripTransactionType, amount: number, note: string) => {
+  const addTransaction = (
+    tripId: string,
+    type: TripTransactionType,
+    amount: number,
+    note: string,
+    originalAmount: number | null = null,
+    originalCurrency: Currency | null = null
+  ) => {
     const tx: TripTransaction = {
       id: `demo-tx-${Date.now()}`,
       type,
       amount,
       note,
       date: new Date().toISOString(),
+      originalAmount,
+      originalCurrency,
     };
     setTransactionsByTrip((prev) => ({ ...prev, [tripId]: [tx, ...(prev[tripId] ?? [])] }));
   };
@@ -54,11 +63,15 @@ function useDemoTripsData() {
     id: string,
     type: TripTransactionType,
     amount: number,
-    note: string
+    note: string,
+    originalAmount: number | null = null,
+    originalCurrency: Currency | null = null
   ) => {
     setTransactionsByTrip((prev) => ({
       ...prev,
-      [tripId]: (prev[tripId] ?? []).map((t) => (t.id === id ? { ...t, type, amount, note } : t)),
+      [tripId]: (prev[tripId] ?? []).map((t) =>
+        t.id === id ? { ...t, type, amount, note, originalAmount, originalCurrency } : t
+      ),
     }));
   };
 
@@ -122,16 +135,35 @@ export function TripsScreen() {
   const deleteTrip = (id: string) =>
     isFirebaseConfigured ? firestoreTrips.deleteTrip(id) : demo.deleteTrip(id);
 
-  const addTransaction = (type: TripTransactionType, amount: number, note: string) => {
+  const addTransaction = (
+    type: TripTransactionType,
+    amount: number,
+    note: string,
+    originalAmount: number | null,
+    originalCurrency: Currency | null
+  ) => {
     if (!selectedTripId) return;
-    if (isFirebaseConfigured) firestoreTripTransactions.addTransaction(type, amount, note);
-    else demo.addTransaction(selectedTripId, type, amount, note);
+    if (isFirebaseConfigured) {
+      firestoreTripTransactions.addTransaction(type, amount, note, originalAmount, originalCurrency);
+    } else {
+      demo.addTransaction(selectedTripId, type, amount, note, originalAmount, originalCurrency);
+    }
   };
 
-  const updateTransaction = (id: string, type: TripTransactionType, amount: number, note: string) => {
+  const updateTransaction = (
+    id: string,
+    type: TripTransactionType,
+    amount: number,
+    note: string,
+    originalAmount: number | null,
+    originalCurrency: Currency | null
+  ) => {
     if (!selectedTripId) return;
-    if (isFirebaseConfigured) firestoreTripTransactions.updateTransaction(id, type, amount, note);
-    else demo.updateTransaction(selectedTripId, id, type, amount, note);
+    if (isFirebaseConfigured) {
+      firestoreTripTransactions.updateTransaction(id, type, amount, note, originalAmount, originalCurrency);
+    } else {
+      demo.updateTransaction(selectedTripId, id, type, amount, note, originalAmount, originalCurrency);
+    }
   };
 
   const deleteTransaction = (id: string) => {

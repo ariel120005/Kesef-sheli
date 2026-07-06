@@ -11,7 +11,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { findMissingRecurringInstances } from '../recurring';
-import { Category, Expense } from '../types';
+import { Category, Currency, Expense } from '../types';
 
 export function useExpenses(uid: string | null) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -42,7 +42,14 @@ export function useExpenses(uid: string | null) {
   }, [uid]);
 
   const addExpense = useCallback(
-    async (amount: number, category: Category, note: string, recurring: boolean) => {
+    async (
+      amount: number,
+      category: Category,
+      note: string,
+      recurring: boolean,
+      originalAmount: number | null = null,
+      originalCurrency: Currency | null = null
+    ) => {
       if (!uid || !db) return;
       await addDoc(collection(db, 'users', uid, 'expenses'), {
         amount,
@@ -50,15 +57,32 @@ export function useExpenses(uid: string | null) {
         note,
         date: new Date().toISOString(),
         recurring,
+        originalAmount,
+        originalCurrency,
       });
     },
     [uid]
   );
 
   const updateExpense = useCallback(
-    async (id: string, amount: number, category: Category, note: string, recurring: boolean) => {
+    async (
+      id: string,
+      amount: number,
+      category: Category,
+      note: string,
+      recurring: boolean,
+      originalAmount: number | null = null,
+      originalCurrency: Currency | null = null
+    ) => {
       if (!uid || !db) return;
-      await updateDoc(doc(db, 'users', uid, 'expenses', id), { amount, category, note, recurring });
+      await updateDoc(doc(db, 'users', uid, 'expenses', id), {
+        amount,
+        category,
+        note,
+        recurring,
+        originalAmount,
+        originalCurrency,
+      });
     },
     [uid]
   );

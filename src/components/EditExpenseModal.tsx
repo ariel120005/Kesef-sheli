@@ -1,14 +1,23 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { CATEGORIES, GRADIENTS, SHADOW } from '../constants';
+import { CURRENCIES, formatForeignAmount, getExchangeRateToILS } from '../currency';
 import { ThemeColors, useTheme } from '../theme';
-import { Category, Expense } from '../types';
+import { Category, Currency, Expense } from '../types';
 
 interface Props {
   expense: Expense | null;
   onClose: () => void;
-  onSave: (id: string, amount: number, category: Category, note: string, recurring: boolean) => void;
+  onSave: (
+    id: string,
+    amount: number,
+    category: Category,
+    note: string,
+    recurring: boolean,
+    originalAmount: number | null,
+    originalCurrency: Currency | null
+  ) => void;
 }
 
 export function EditExpenseModal({ expense, onClose, onSave }: Props) {
@@ -18,21 +27,52 @@ export function EditExpenseModal({ expense, onClose, onSave }: Props) {
   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
   const [note, setNote] = useState('');
   const [recurring, setRecurring] = useState(false);
+  const [currency, setCurrency] = useState<Currency | 'ILS'>('ILS');
+  const [rate, setRate] = useState<number | null>(null);
+  const [rateLoading, setRateLoading] = useState(false);
 
   useEffect(() => {
     if (expense) {
-      setAmount(String(expense.amount));
+      const hasOriginal = !!expense.originalCurrency && expense.originalAmount != null;
+      setAmount(String(hasOriginal ? expense.originalAmount : expense.amount));
       setCategory(expense.category);
       setNote(expense.note);
       setRecurring(!!expense.recurring);
+      setCurrency(hasOriginal ? (expense.originalCurrency as Currency) : 'ILS');
     }
   }, [expense]);
 
+  useEffect(() => {
+    if (currency === 'ILS') {
+      setRate(null);
+      return;
+    }
+    let cancelled = false;
+    setRateLoading(true);
+    getExchangeRateToILS(currency).then((result) => {
+      if (!cancelled) {
+        setRate(result.rate);
+        setRateLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currency]);
+
+  const parsedAmount = Number(amount.replace(',', '.'));
+  const convertedILS =
+    currency !== 'ILS' && rate && !isNaN(parsedAmount) ? parsedAmount * rate : null;
+
   const handleSave = () => {
     if (!expense) return;
-    const parsed = Number(amount.replace(',', '.'));
-    if (!amount || isNaN(parsed) || parsed <= 0) return;
-    onSave(expense.id, parsed, category, note.trim(), recurring);
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) return;
+    if (currency !== 'ILS') {
+      if (!rate) return;
+      onSave(expense.id, parsedAmount * rate, category, note.trim(), recurring, parsedAmount, currency);
+    } else {
+      onSave(expense.id, parsedAmount, category, note.trim(), recurring, null, null);
+    }
     onClose();
   };
 
@@ -44,13 +84,58 @@ export function EditExpenseModal({ expense, onClose, onSave }: Props) {
 
           <TextInput
             style={styles.input}
-            placeholder="סכום (₪)"
+            placeholder={currency !== 'ILS' ? 'סכום' : 'סכום (₪)'}
             placeholderTextColor={colors.subtext}
             keyboardType="numeric"
             value={amount}
             onChangeText={setAmount}
             textAlign="right"
           />
+
+          <View style={styles.currencyWrap}>
+            <Pressable
+              onPress={() => setCurrency('ILS')}
+              style={[styles.currencyChip, currency === 'ILS' && styles.currencyChipSelected]}
+            >
+              <Text
+                style={[
+                  styles.currencyChipText,
+                  currency === 'ILS' && styles.currencyChipTextSelected,
+                ]}
+              >
+                ₪ שקל
+              </Text>
+            </Pressable>
+            {CURRENCIES.map((c) => {
+              const selected = currency === c.code;
+              return (
+                <Pressable
+                  key={c.code}
+                  onPress={() => setCurrency(c.code)}
+                  style={[styles.currencyChip, selected && styles.currencyChipSelected]}
+                >
+                  <Text
+                    style={[styles.currencyChipText, selected && styles.currencyChipTextSelected]}
+                  >
+                    {c.symbol} {c.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {currency !== 'ILS' && (
+            <View style={styles.conversionRow}>
+              {rateLoading ? (
+                <ActivityIndicator size="small" color={colors.subtext} />
+              ) : convertedILS !== null ? (
+                <Text style={styles.conversionText}>
+                  {formatForeignAmount(parsedAmount, currency)} ≈ ₪
+                  {convertedILS.toLocaleString('he-IL', { maximumFractionDigits: 2 })}
+                </Text>
+              ) : null}
+            </View>
+          )}
 
           <View style={styles.categoryWrap}>
             {CATEGORIES.map((cat) => {
@@ -148,6 +233,41 @@ function getStyles(colors: ThemeColors) {
       fontSize: 15,
       color: colors.text,
       marginBottom: 16,
+    },
+    currencyWrap: {
+      flexDirection: 'row-reverse',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 8,
+    },
+    currencyChip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.chipBackground,
+      borderRadius: 20,
+      paddingVertical: 7,
+      paddingHorizontal: 14,
+    },
+    currencyChipSelected: {
+      borderWidth: 0,
+      backgroundColor: colors.turquoise,
+    },
+    currencyChipText: {
+      color: colors.text,
+      fontSize: 13,
+    },
+    currencyChipTextSelected: {
+      color: '#0A0A0F',
+      fontWeight: '700',
+    },
+    conversionRow: {
+      alignItems: 'flex-end',
+      marginBottom: 12,
+    },
+    conversionText: {
+      color: colors.subtext,
+      fontSize: 13,
+      textAlign: 'right',
     },
     categoryWrap: {
       flexDirection: 'row-reverse',

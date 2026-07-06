@@ -23,6 +23,15 @@ export const DEMO_EXPENSES: Expense[] = [
     date: dayOfMonth(0, 1),
     recurring: true,
   },
+  {
+    id: 'demo-8',
+    amount: 92.5,
+    category: 'קניות',
+    note: 'רכישה באתר אמריקאי',
+    date: dayOfMonth(0, 6),
+    originalAmount: 25,
+    originalCurrency: 'USD',
+  },
   // last month, for the month-over-month insight
   { id: 'demo-5', amount: 200, category: 'מזון', note: 'סופר', date: dayOfMonth(-1, 5) },
   { id: 'demo-6', amount: 140, category: 'תחבורה', note: 'דלק', date: dayOfMonth(-1, 10) },
@@ -30,6 +39,7 @@ export const DEMO_EXPENSES: Expense[] = [
 
 export const DEMO_TRIPS: Trip[] = [
   { id: 'demo-trip-1', name: 'טיול לאילת', budget: 2000, createdAt: dayOfMonth(0, 1) },
+  { id: 'demo-trip-2', name: 'טיול לבנגקוק', budget: 5000, createdAt: dayOfMonth(-1, 14) },
 ];
 
 export const DEMO_TRIP_TRANSACTIONS: Record<string, TripTransaction[]> = {
@@ -38,5 +48,27 @@ export const DEMO_TRIP_TRANSACTIONS: Record<string, TripTransaction[]> = {
     { id: 'demo-tx-2', type: 'expense', amount: 180, note: 'ארוחת ערב', date: dayOfMonth(0, 3) },
     { id: 'demo-tx-3', type: 'fee', amount: 15, note: 'עמלת משיכה', date: dayOfMonth(0, 3) },
     { id: 'demo-tx-4', type: 'reimbursement', amount: 200, note: 'החזר מדני על המלון', date: dayOfMonth(0, 4) },
+  ],
+  'demo-trip-2': [
+    {
+      id: 'demo-tx-5',
+      type: 'expense',
+      amount: 370,
+      note: 'מלון',
+      date: dayOfMonth(-1, 15),
+      originalAmount: 100,
+      originalCurrency: 'USD',
+    },
+    {
+      id: 'demo-tx-6',
+      type: 'expense',
+      amount: 120,
+      note: 'ארוחת ערב',
+      date: dayOfMonth(-1, 16),
+      originalAmount: 1200,
+      originalCurrency: 'THB',
+    },
+    { id: 'demo-tx-7', type: 'fee', amount: 12, note: 'עמלת משיכה', date: dayOfMonth(-1, 15) },
+    { id: 'demo-tx-8', type: 'reimbursement', amount: 150, note: 'החזר מרוני על הטיסה', date: dayOfMonth(-1, 17) },
   ],
 };

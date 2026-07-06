@@ -1,13 +1,23 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { CATEGORIES, GRADIENTS, SHADOW } from '../constants';
+import { CURRENCIES, formatForeignAmount, getExchangeRateToILS } from '../currency';
 import { ThemeColors, useTheme } from '../theme';
-import { Category } from '../types';
+import { Category, Currency } from '../types';
 
 interface Props {
-  onAdd: (amount: number, category: Category, note: string, recurring: boolean) => void;
+  onAdd: (
+    amount: number,
+    category: Category,
+    note: string,
+    recurring: boolean,
+    originalAmount: number | null,
+    originalCurrency: Currency | null
+  ) => void;
 }
+
+const QUICK_AMOUNTS = [20, 50, 100, 200];
 
 export function AddExpenseForm({ onAdd }: Props) {
   const { colors } = useTheme();
@@ -16,14 +26,44 @@ export function AddExpenseForm({ onAdd }: Props) {
   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
   const [note, setNote] = useState('');
   const [recurring, setRecurring] = useState(false);
+  const [currency, setCurrency] = useState<Currency | 'ILS'>('ILS');
+  const [rate, setRate] = useState<number | null>(null);
+  const [rateLoading, setRateLoading] = useState(false);
+
+  useEffect(() => {
+    if (currency === 'ILS') {
+      setRate(null);
+      return;
+    }
+    let cancelled = false;
+    setRateLoading(true);
+    getExchangeRateToILS(currency).then((result) => {
+      if (!cancelled) {
+        setRate(result.rate);
+        setRateLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currency]);
+
+  const parsedAmount = Number(amount.replace(',', '.'));
+  const isForeign = currency !== 'ILS';
+  const convertedILS = isForeign && rate && !isNaN(parsedAmount) ? parsedAmount * rate : null;
 
   const handleSubmit = () => {
-    const parsed = Number(amount.replace(',', '.'));
-    if (!amount || isNaN(parsed) || parsed <= 0) return;
-    onAdd(parsed, category, note.trim(), recurring);
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) return;
+    if (isForeign) {
+      if (!rate) return;
+      onAdd(parsedAmount * rate, category, note.trim(), recurring, parsedAmount, currency);
+    } else {
+      onAdd(parsedAmount, category, note.trim(), recurring, null, null);
+    }
     setAmount('');
     setNote('');
     setRecurring(false);
+    setCurrency('ILS');
   };
 
   return (
@@ -32,13 +72,63 @@ export function AddExpenseForm({ onAdd }: Props) {
 
       <TextInput
         style={styles.input}
-        placeholder="סכום (₪)"
+        placeholder={isForeign ? 'סכום' : 'סכום (₪)'}
         placeholderTextColor={colors.subtext}
         keyboardType="numeric"
         value={amount}
         onChangeText={setAmount}
         textAlign="right"
       />
+
+      <View style={styles.quickAmountsWrap}>
+        {QUICK_AMOUNTS.map((value) => (
+          <Pressable
+            key={value}
+            onPress={() => setAmount(String(value))}
+            style={styles.quickAmountChip}
+          >
+            <Text style={styles.quickAmountChipText}>{`₪${value}`}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.currencyWrap}>
+        <Pressable
+          onPress={() => setCurrency('ILS')}
+          style={[styles.currencyChip, !isForeign && styles.currencyChipSelected]}
+        >
+          <Text style={[styles.currencyChipText, !isForeign && styles.currencyChipTextSelected]}>
+            ₪ שקל
+          </Text>
+        </Pressable>
+        {CURRENCIES.map((c) => {
+          const selected = currency === c.code;
+          return (
+            <Pressable
+              key={c.code}
+              onPress={() => setCurrency(c.code)}
+              style={[styles.currencyChip, selected && styles.currencyChipSelected]}
+            >
+              <Text style={[styles.currencyChipText, selected && styles.currencyChipTextSelected]}>
+                {c.symbol} {c.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {currency !== 'ILS' && (
+        <View style={styles.conversionRow}>
+          {rateLoading ? (
+            <ActivityIndicator size="small" color={colors.subtext} />
+          ) : convertedILS !== null ? (
+            <Text style={styles.conversionText}>
+              {formatForeignAmount(parsedAmount, currency)} ≈ ₪
+              {convertedILS.toLocaleString('he-IL', { maximumFractionDigits: 2 })}
+            </Text>
+          ) : null}
+        </View>
+      )}
 
       <View style={styles.categoryWrap}>
         {CATEGORIES.map((cat) => {
@@ -124,6 +214,60 @@ function getStyles(colors: ThemeColors) {
       fontSize: 15,
       color: colors.text,
       marginBottom: 16,
+    },
+    quickAmountsWrap: {
+      flexDirection: 'row-reverse',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 16,
+    },
+    quickAmountChip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.chipBackground,
+      borderRadius: 20,
+      paddingVertical: 7,
+      paddingHorizontal: 14,
+    },
+    quickAmountChipText: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    currencyWrap: {
+      flexDirection: 'row-reverse',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 8,
+    },
+    currencyChip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.chipBackground,
+      borderRadius: 20,
+      paddingVertical: 7,
+      paddingHorizontal: 14,
+    },
+    currencyChipSelected: {
+      borderWidth: 0,
+      backgroundColor: colors.turquoise,
+    },
+    currencyChipText: {
+      color: colors.text,
+      fontSize: 13,
+    },
+    currencyChipTextSelected: {
+      color: '#0A0A0F',
+      fontWeight: '700',
+    },
+    conversionRow: {
+      alignItems: 'flex-end',
+      marginBottom: 12,
+    },
+    conversionText: {
+      color: colors.subtext,
+      fontSize: 13,
+      textAlign: 'right',
     },
     categoryWrap: {
       flexDirection: 'row-reverse',

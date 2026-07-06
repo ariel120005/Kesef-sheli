@@ -36,14 +36,16 @@ and the UI shows a "Firebase לא מוגדר" message instead of crashing.
 - `users/{uid}` — document with `budget` (monthly budget) and `savingsGoal` (monthly savings
   target) fields.
 - `users/{uid}/expenses/{autoId}` — one document per expense (`amount`, `category`, `note`,
-  `date`, optional `recurring`, optional `autoDetected`).
+  `date`, optional `recurring`, optional `autoDetected`, optional `originalAmount`/
+  `originalCurrency` when entered in a foreign currency — see "Foreign-currency entry" above).
+  `amount` is always ILS.
 - `users/{uid}/trips/{tripId}` — one document per trip (`name`, `budget`, `createdAt`), a budget
   kept separate from the monthly budget above.
 - `users/{uid}/trips/{tripId}/transactions/{autoId}` — one document per trip transaction
   (`type`: `'expense' | 'reimbursement' | 'fee'`, `amount`, `note`, `date`, optional
-  `autoDetected`). `reimbursement` transactions (money received back, e.g. via Bit) offset net
-  trip spending rather than counting as a separate expense; `fee` is its own type so
-  cash-withdrawal fees don't pollute expense totals.
+  `autoDetected`, optional `originalAmount`/`originalCurrency`). `reimbursement` transactions
+  (money received back, e.g. via Bit) offset net trip spending rather than counting as a
+  separate expense; `fee` is its own type so cash-withdrawal fees don't pollute expense totals.
 
 ### Firestore security rules (set these in the Firebase Console)
 
@@ -99,6 +101,16 @@ module-level constant), so it re-renders correctly on theme toggle.
 
 - Sign up / sign in with email + password; data is scoped to the signed-in account.
 - Add an expense: amount, category (fixed Hebrew list), free-text note.
+- Quick-amount shortcuts: fixed ₪20/50/100/200 chips under the amount field on the add-expense
+  form that fill it in one tap — a static list, not derived from usage.
+- Foreign-currency entry: the add/edit forms for both regular expenses and trip transactions let
+  you enter the amount in USD/EUR/THB/VND instead of ILS (useful mid-trip, so you can type the
+  amount exactly as printed on a local receipt). `src/currency.ts` converts it to ILS using a
+  free, keyless daily-rate API (falls back to a fixed approximate rate if that fetch fails, e.g.
+  offline). Both the original amount+currency and the converted ILS amount are stored
+  (`originalAmount`/`originalCurrency` on `Expense`/`TripTransaction`) and shown side by side in
+  the list — `amount` is always ILS so the rest of the app's math never needs to know about
+  currencies.
 - Set a monthly budget.
 - Visual budget meter: gradient bar fills with % of budget spent, the gradient itself
   changes (green → orange → red) as it approaches/exceeds the budget.
@@ -150,6 +162,7 @@ src/theme.tsx                        ThemeProvider/useTheme (dark/light, persist
 src/firebaseConfig.ts                reads EXPO_PUBLIC_FIREBASE_* env vars
 src/firebase.ts / firebase.web.ts    platform-specific Firebase app/auth/db init
 src/utils.ts                         currency formatting, month-matching helpers
+src/currency.ts                      foreign-currency list, live-rate fetch (+ offline fallback), formatting
 src/hooks/useAuth.tsx                AuthProvider/useAuth (sign up/in/out, current user)
 src/hooks/useExpenses.ts             Firestore-backed expenses (onSnapshot, add, delete)
 src/hooks/useBudget.ts               Firestore-backed monthly budget (onSnapshot, update)

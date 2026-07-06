@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { db } from '../firebase';
-import { TripTransaction, TripTransactionType } from '../types';
+import { Currency, TripTransaction, TripTransactionType } from '../types';
 
 export function useTripTransactions(uid: string | null, tripId: string | null) {
   const [transactions, setTransactions] = useState<TripTransaction[]>([]);
@@ -44,25 +44,42 @@ export function useTripTransactions(uid: string | null, tripId: string | null) {
   }, [uid, tripId]);
 
   const addTransaction = useCallback(
-    async (type: TripTransactionType, amount: number, note: string) => {
+    async (
+      type: TripTransactionType,
+      amount: number,
+      note: string,
+      originalAmount: number | null = null,
+      originalCurrency: Currency | null = null
+    ) => {
       if (!uid || !tripId || !db) return;
       await addDoc(collection(db, 'users', uid, 'trips', tripId, 'transactions'), {
         type,
         amount,
         note,
         date: new Date().toISOString(),
+        originalAmount,
+        originalCurrency,
       });
     },
     [uid, tripId]
   );
 
   const updateTransaction = useCallback(
-    async (id: string, type: TripTransactionType, amount: number, note: string) => {
+    async (
+      id: string,
+      type: TripTransactionType,
+      amount: number,
+      note: string,
+      originalAmount: number | null = null,
+      originalCurrency: Currency | null = null
+    ) => {
       if (!uid || !tripId || !db) return;
       await updateDoc(doc(db, 'users', uid, 'trips', tripId, 'transactions', id), {
         type,
         amount,
         note,
+        originalAmount,
+        originalCurrency,
       });
     },
     [uid, tripId]

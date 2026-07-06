@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SHADOW } from '../constants';
+import { formatForeignAmount } from '../currency';
 import { ThemeColors, useTheme } from '../theme';
 import { TripTransaction, TripTransactionType } from '../types';
 import { formatCurrency, formatDate } from '../utils';
@@ -58,6 +59,11 @@ export function TripTransactionList({ transactions, onDelete, onEdit }: Props) {
                 </Text>
               </View>
               {!!transaction.note && <Text style={styles.note}>{transaction.note}</Text>}
+              {!!transaction.originalCurrency && transaction.originalAmount != null && (
+                <Text style={styles.originalAmount}>
+                  שולם {formatForeignAmount(transaction.originalAmount, transaction.originalCurrency)}
+                </Text>
+              )}
               <Text style={styles.date}>{formatDate(transaction.date)}</Text>
             </Pressable>
           </View>
@@ -151,6 +157,12 @@ function getStyles(colors: ThemeColors) {
     note: {
       color: colors.subtext,
       fontSize: 13,
+      textAlign: 'right',
+      marginTop: 4,
+    },
+    originalAmount: {
+      color: colors.subtext,
+      fontSize: 12,
       textAlign: 'right',
       marginTop: 4,
     },

@@ -1,12 +1,19 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GRADIENTS, SHADOW } from '../constants';
+import { CURRENCIES, formatForeignAmount, getExchangeRateToILS } from '../currency';
 import { ThemeColors, useTheme } from '../theme';
-import { TripTransactionType } from '../types';
+import { Currency, TripTransactionType } from '../types';
 
 interface Props {
-  onAdd: (type: TripTransactionType, amount: number, note: string) => void;
+  onAdd: (
+    type: TripTransactionType,
+    amount: number,
+    note: string,
+    originalAmount: number | null,
+    originalCurrency: Currency | null
+  ) => void;
 }
 
 const TYPE_OPTIONS: { key: TripTransactionType; label: string }[] = [
@@ -21,13 +28,43 @@ export function AddTripTransactionForm({ onAdd }: Props) {
   const [type, setType] = useState<TripTransactionType>('expense');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [currency, setCurrency] = useState<Currency | 'ILS'>('ILS');
+  const [rate, setRate] = useState<number | null>(null);
+  const [rateLoading, setRateLoading] = useState(false);
+
+  useEffect(() => {
+    if (currency === 'ILS') {
+      setRate(null);
+      return;
+    }
+    let cancelled = false;
+    setRateLoading(true);
+    getExchangeRateToILS(currency).then((result) => {
+      if (!cancelled) {
+        setRate(result.rate);
+        setRateLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currency]);
+
+  const parsedAmount = Number(amount.replace(',', '.'));
+  const convertedILS =
+    currency !== 'ILS' && rate && !isNaN(parsedAmount) ? parsedAmount * rate : null;
 
   const handleSubmit = () => {
-    const parsed = Number(amount.replace(',', '.'));
-    if (!amount || isNaN(parsed) || parsed <= 0) return;
-    onAdd(type, parsed, note.trim());
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) return;
+    if (currency !== 'ILS') {
+      if (!rate) return;
+      onAdd(type, parsedAmount * rate, note.trim(), parsedAmount, currency);
+    } else {
+      onAdd(type, parsedAmount, note.trim(), null, null);
+    }
     setAmount('');
     setNote('');
+    setCurrency('ILS');
   };
 
   return (
@@ -65,13 +102,53 @@ export function AddTripTransactionForm({ onAdd }: Props) {
 
       <TextInput
         style={styles.input}
-        placeholder="סכום (₪)"
+        placeholder={currency !== 'ILS' ? 'סכום' : 'סכום (₪)'}
         placeholderTextColor={colors.subtext}
         keyboardType="numeric"
         value={amount}
         onChangeText={setAmount}
         textAlign="right"
       />
+
+      <View style={styles.currencyWrap}>
+        <Pressable
+          onPress={() => setCurrency('ILS')}
+          style={[styles.currencyChip, currency === 'ILS' && styles.currencyChipSelected]}
+        >
+          <Text
+            style={[styles.currencyChipText, currency === 'ILS' && styles.currencyChipTextSelected]}
+          >
+            ₪ שקל
+          </Text>
+        </Pressable>
+        {CURRENCIES.map((c) => {
+          const selected = currency === c.code;
+          return (
+            <Pressable
+              key={c.code}
+              onPress={() => setCurrency(c.code)}
+              style={[styles.currencyChip, selected && styles.currencyChipSelected]}
+            >
+              <Text style={[styles.currencyChipText, selected && styles.currencyChipTextSelected]}>
+                {c.symbol} {c.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {currency !== 'ILS' && (
+        <View style={styles.conversionRow}>
+          {rateLoading ? (
+            <ActivityIndicator size="small" color={colors.subtext} />
+          ) : convertedILS !== null ? (
+            <Text style={styles.conversionText}>
+              {formatForeignAmount(parsedAmount, currency)} ≈ ₪
+              {convertedILS.toLocaleString('he-IL', { maximumFractionDigits: 2 })}
+            </Text>
+          ) : null}
+        </View>
+      )}
 
       <TextInput
         style={styles.input}
@@ -151,6 +228,41 @@ function getStyles(colors: ThemeColors) {
       color: '#0A0A0F',
       fontWeight: '700',
       fontSize: 13,
+    },
+    currencyWrap: {
+      flexDirection: 'row-reverse',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 8,
+    },
+    currencyChip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.chipBackground,
+      borderRadius: 20,
+      paddingVertical: 7,
+      paddingHorizontal: 14,
+    },
+    currencyChipSelected: {
+      borderWidth: 0,
+      backgroundColor: colors.turquoise,
+    },
+    currencyChipText: {
+      color: colors.text,
+      fontSize: 13,
+    },
+    currencyChipTextSelected: {
+      color: '#0A0A0F',
+      fontWeight: '700',
+    },
+    conversionRow: {
+      alignItems: 'flex-end',
+      marginBottom: 12,
+    },
+    conversionText: {
+      color: colors.subtext,
+      fontSize: 13,
+      textAlign: 'right',
     },
     submitButton: {
       borderRadius: 14,

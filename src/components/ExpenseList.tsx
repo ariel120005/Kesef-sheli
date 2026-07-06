@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SHADOW } from '../constants';
+import { formatForeignAmount } from '../currency';
 import { ThemeColors, useTheme } from '../theme';
 import { Expense } from '../types';
 import { formatCurrency, formatDate } from '../utils';
@@ -46,6 +47,11 @@ export function ExpenseList({ expenses, onDelete, onEdit }: Props) {
                 <Text style={styles.amount}>{formatCurrency(expense.amount)}</Text>
               </View>
               {!!expense.note && <Text style={styles.note}>{expense.note}</Text>}
+              {!!expense.originalCurrency && expense.originalAmount != null && (
+                <Text style={styles.originalAmount}>
+                  שולם {formatForeignAmount(expense.originalAmount, expense.originalCurrency)}
+                </Text>
+              )}
               <Text style={styles.date}>{formatDate(expense.date)}</Text>
             </Pressable>
           </View>
@@ -134,6 +140,12 @@ function getStyles(colors: ThemeColors) {
     note: {
       color: colors.subtext,
       fontSize: 13,
+      textAlign: 'right',
+      marginTop: 4,
+    },
+    originalAmount: {
+      color: colors.subtext,
+      fontSize: 12,
       textAlign: 'right',
       marginTop: 4,
     },
