@@ -1,62 +1,27 @@
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { StatusBar, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { AddExpenseForm } from './src/components/AddExpenseForm';
-import { BudgetMeter } from './src/components/BudgetMeter';
-import { CategoryBreakdown } from './src/components/CategoryBreakdown';
-import { ExpenseList } from './src/components/ExpenseList';
-import { SetBudgetModal } from './src/components/SetBudgetModal';
+import { BottomTabBar } from './src/components/BottomTabBar';
 import { COLORS } from './src/constants';
-import { useBudget } from './src/hooks/useBudget';
-import { useExpenses } from './src/hooks/useExpenses';
-import { isSameMonth } from './src/utils';
+import { HomeScreen } from './src/screens/HomeScreen';
+import { PlaceholderScreen } from './src/screens/PlaceholderScreen';
+import { TabKey } from './src/types';
 
 export default function App() {
-  const { expenses, loaded: expensesLoaded, addExpense, deleteExpense } = useExpenses();
-  const { budget, loaded: budgetLoaded, updateBudget } = useBudget();
-  const [budgetModalVisible, setBudgetModalVisible] = useState(false);
-
-  const monthlySpent = useMemo(
-    () => expenses.filter((e) => isSameMonth(e.date)).reduce((sum, e) => sum + e.amount, 0),
-    [expenses]
-  );
-
-  if (!expensesLoaded || !budgetLoaded) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
+  const [activeTab, setActiveTab] = useState<TabKey>('home');
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="light-content" />
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.header}>כסף שלי</Text>
 
-          <BudgetMeter
-            budget={budget}
-            spent={monthlySpent}
-            onEditBudget={() => setBudgetModalVisible(true)}
-          />
+        {activeTab === 'home' && <HomeScreen />}
+        {activeTab === 'profile' && <PlaceholderScreen icon="person-outline" title="פרופיל" />}
+        {activeTab === 'settings' && <PlaceholderScreen icon="settings-outline" title="הגדרות" />}
+      </SafeAreaView>
 
-          <AddExpenseForm onAdd={addExpense} />
-
-          <CategoryBreakdown expenses={expenses} />
-
-          <ExpenseList expenses={expenses} onDelete={deleteExpense} />
-        </ScrollView>
-
-        <SetBudgetModal
-          visible={budgetModalVisible}
-          initialValue={budget}
-          onClose={() => setBudgetModalVisible(false)}
-          onSave={updateBudget}
-        />
+      <SafeAreaView style={styles.tabBarSafeArea} edges={['bottom', 'left', 'right']}>
+        <BottomTabBar active={activeTab} onChange={setActiveTab} />
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -67,22 +32,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    padding: 22,
-    paddingBottom: 40,
-  },
-  header: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: COLORS.text,
-    textAlign: 'right',
-    marginBottom: 24,
-    letterSpacing: 0.2,
+  tabBarSafeArea: {
+    backgroundColor: COLORS.card,
   },
 });

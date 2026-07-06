@@ -15,3 +15,5 @@ export interface Expense {
   note: string;
   date: string; // ISO string
 }
+
+export type TabKey = 'profile' | 'home' | 'settings';
