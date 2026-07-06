@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { COLORS, GRADIENTS, SHADOW } from '../constants';
+import { GRADIENTS, SHADOW } from '../constants';
+import { ThemeColors, useTheme } from '../theme';
 
 interface Props {
   visible: boolean;
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export function SetBudgetModal({ visible, initialValue, onClose, onSave }: Props) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   const [value, setValue] = useState('');
 
   useEffect(() => {
@@ -33,7 +36,7 @@ export function SetBudgetModal({ visible, initialValue, onClose, onSave }: Props
             style={styles.input}
             keyboardType="numeric"
             placeholder="לדוגמה: 5000"
-            placeholderTextColor={COLORS.subtext}
+            placeholderTextColor={colors.subtext}
             value={value}
             onChangeText={setValue}
             textAlign="right"
@@ -60,63 +63,65 @@ export function SetBudgetModal({ visible, initialValue, onClose, onSave }: Props
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    textAlign: 'right',
-    marginBottom: 18,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 14,
-    padding: 14,
-    fontSize: 16,
-    color: COLORS.text,
-    marginBottom: 20,
-  },
-  buttonsRow: {
-    flexDirection: 'row-reverse',
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  saveButton: {
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    color: '#0A0A0F',
-    fontWeight: '700',
-  },
-  cancelButton: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  cancelButtonText: {
-    color: COLORS.text,
-    fontWeight: '600',
-  },
-});
+function getStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.65)',
+      justifyContent: 'center',
+      padding: 24,
+    },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 24,
+      padding: 24,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'right',
+      marginBottom: 18,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.chipBackground,
+      borderRadius: 14,
+      padding: 14,
+      fontSize: 16,
+      color: colors.text,
+      marginBottom: 20,
+    },
+    buttonsRow: {
+      flexDirection: 'row-reverse',
+      gap: 12,
+    },
+    button: {
+      flex: 1,
+      borderRadius: 14,
+      overflow: 'hidden',
+    },
+    saveButton: {
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    saveButtonText: {
+      color: '#0A0A0F',
+      fontWeight: '700',
+    },
+    cancelButton: {
+      paddingVertical: 14,
+      alignItems: 'center',
+      backgroundColor: colors.chipBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cancelButtonText: {
+      color: colors.text,
+      fontWeight: '600',
+    },
+  });
+}

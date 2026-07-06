@@ -35,7 +35,8 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files (holds Firebase config — never commit)
+.env
 .env*.local
 
 # typescript

@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS, GRADIENTS, SHADOW } from '../constants';
+import { GRADIENTS, SHADOW } from '../constants';
+import { ThemeColors, useTheme } from '../theme';
 import { formatCurrency } from '../utils';
 
 interface Props {
@@ -11,6 +12,9 @@ interface Props {
 }
 
 export function BudgetMeter({ budget, spent, onEditBudget }: Props) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   if (budget === null) {
     return (
       <View style={[styles.card, SHADOW]}>
@@ -32,7 +36,7 @@ export function BudgetMeter({ budget, spent, onEditBudget }: Props) {
 
   const ratio = budget > 0 ? spent / budget : 0;
   const zone = ratio >= 1 ? 'over' : ratio >= 0.7 ? 'warning' : 'safe';
-  const zoneColor = COLORS[zone];
+  const zoneColor = colors[zone];
   const barGradient = GRADIENTS[zone];
   const fillPercent = Math.min(ratio, 1) * 100;
   const remaining = budget - spent;
@@ -69,69 +73,71 @@ export function BudgetMeter({ budget, spent, onEditBudget }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 24,
-    padding: 22,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-  },
-  headerRow: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.text,
-    textAlign: 'right',
-  },
-  editLink: {
-    color: COLORS.turquoise,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  emptyText: {
-    color: COLORS.subtext,
-    textAlign: 'right',
-    marginBottom: 18,
-    lineHeight: 20,
-  },
-  setButton: {
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  setButtonText: {
-    color: '#0A0A0F',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  barTrack: {
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 8,
-  },
-  amountsRow: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    marginTop: 14,
-  },
-  spentText: {
-    color: COLORS.subtext,
-    fontSize: 13,
-  },
-  remainingText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});
+function getStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 24,
+      padding: 22,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    headerRow: {
+      flexDirection: 'row-reverse',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 18,
+    },
+    title: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'right',
+    },
+    editLink: {
+      color: colors.turquoise,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    emptyText: {
+      color: colors.subtext,
+      textAlign: 'right',
+      marginBottom: 18,
+      lineHeight: 20,
+    },
+    setButton: {
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    setButtonText: {
+      color: '#0A0A0F',
+      fontWeight: '700',
+      fontSize: 15,
+    },
+    barTrack: {
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: colors.chipBackground,
+      overflow: 'hidden',
+    },
+    barFill: {
+      height: '100%',
+      borderRadius: 8,
+    },
+    amountsRow: {
+      flexDirection: 'row-reverse',
+      justifyContent: 'space-between',
+      marginTop: 14,
+    },
+    spentText: {
+      color: colors.subtext,
+      fontSize: 13,
+    },
+    remainingText: {
+      fontSize: 14,
+      fontWeight: '700',
+    },
+  });
+}

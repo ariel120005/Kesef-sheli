@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AddExpenseForm } from '../components/AddExpenseForm';
@@ -5,14 +6,21 @@ import { BudgetMeter } from '../components/BudgetMeter';
 import { CategoryBreakdown } from '../components/CategoryBreakdown';
 import { ExpenseList } from '../components/ExpenseList';
 import { SetBudgetModal } from '../components/SetBudgetModal';
-import { COLORS } from '../constants';
+import { isFirebaseConfigured } from '../firebase';
+import { useAuth } from '../hooks/useAuth';
 import { useBudget } from '../hooks/useBudget';
 import { useExpenses } from '../hooks/useExpenses';
+import { ThemeColors, useTheme } from '../theme';
 import { isSameMonth } from '../utils';
 
 export function HomeScreen() {
-  const { expenses, loaded: expensesLoaded, addExpense, deleteExpense } = useExpenses();
-  const { budget, loaded: budgetLoaded, updateBudget } = useBudget();
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+  const { user } = useAuth();
+  const { expenses, loaded: expensesLoaded, addExpense, deleteExpense } = useExpenses(
+    user?.uid ?? null
+  );
+  const { budget, loaded: budgetLoaded, updateBudget } = useBudget(user?.uid ?? null);
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
 
   const monthlySpent = useMemo(
@@ -20,10 +28,30 @@ export function HomeScreen() {
     [expenses]
   );
 
+  if (!isFirebaseConfigured) {
+    return (
+      <View style={styles.messageContainer}>
+        <Ionicons name="cloud-offline-outline" size={44} color={colors.subtext} />
+        <Text style={styles.messageTitle}>Firebase לא מוגדר</Text>
+        <Text style={styles.messageSubtitle}>הוסיפו את פרטי ה-Firebase לקובץ .env</Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={styles.messageContainer}>
+        <Ionicons name="lock-closed-outline" size={44} color={colors.subtext} />
+        <Text style={styles.messageTitle}>יש להתחבר כדי לראות את הנתונים</Text>
+        <Text style={styles.messageSubtitle}>עברו לטאב "פרופיל" כדי להתחבר או להירשם</Text>
+      </View>
+    );
+  }
+
   if (!expensesLoaded || !budgetLoaded) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={styles.messageContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -56,25 +84,40 @@ export function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    padding: 22,
-    paddingBottom: 40,
-  },
-  header: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: COLORS.text,
-    textAlign: 'right',
-    marginBottom: 24,
-    letterSpacing: 0.2,
-  },
-});
+function getStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    messageContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 32,
+      gap: 12,
+    },
+    messageTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    messageSubtitle: {
+      fontSize: 14,
+      color: colors.subtext,
+      textAlign: 'center',
+    },
+    content: {
+      padding: 22,
+      paddingBottom: 40,
+    },
+    header: {
+      fontSize: 30,
+      fontWeight: '800',
+      color: colors.text,
+      textAlign: 'right',
+      marginBottom: 24,
+      letterSpacing: 0.2,
+    },
+  });
+}

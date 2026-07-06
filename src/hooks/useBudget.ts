@@ -1,23 +1,38 @@
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS } from '../constants';
+import { db } from '../firebase';
 
-export function useBudget() {
+export function useBudget(uid: string | null) {
   const [budget, setBudget] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEYS.budget)
-      .then((raw) => {
-        if (raw) setBudget(JSON.parse(raw));
-      })
-      .finally(() => setLoaded(true));
-  }, []);
+    if (!uid || !db) {
+      setBudget(null);
+      setLoaded(true);
+      return;
+    }
+    setLoaded(false);
+    const userDoc = doc(db, 'users', uid);
+    const unsubscribe = onSnapshot(
+      userDoc,
+      (snap) => {
+        const data = snap.data();
+        setBudget(typeof data?.budget === 'number' ? data.budget : null);
+        setLoaded(true);
+      },
+      () => setLoaded(true)
+    );
+    return unsubscribe;
+  }, [uid]);
 
-  const updateBudget = useCallback((value: number) => {
-    setBudget(value);
-    AsyncStorage.setItem(STORAGE_KEYS.budget, JSON.stringify(value));
-  }, []);
+  const updateBudget = useCallback(
+    async (value: number) => {
+      if (!uid || !db) return;
+      await setDoc(doc(db, 'users', uid), { budget: value }, { merge: true });
+    },
+    [uid]
+  );
 
   return { budget, loaded, updateBudget };
 }

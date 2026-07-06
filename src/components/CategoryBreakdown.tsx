@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { COLORS, GRADIENTS, SHADOW } from '../constants';
+import { GRADIENTS, SHADOW } from '../constants';
+import { ThemeColors, useTheme } from '../theme';
 import { Expense } from '../types';
 import { formatCurrency, isSameMonth } from '../utils';
 
@@ -10,6 +11,9 @@ interface Props {
 }
 
 export function CategoryBreakdown({ expenses }: Props) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   const rows = useMemo(() => {
     const totals = new Map<string, number>();
     let monthTotal = 0;
@@ -54,51 +58,53 @@ export function CategoryBreakdown({ expenses }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 24,
-    padding: 22,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.text,
-    textAlign: 'right',
-    marginBottom: 18,
-  },
-  emptyText: {
-    color: COLORS.subtext,
-    textAlign: 'right',
-  },
-  row: {
-    marginBottom: 16,
-  },
-  rowHeader: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  category: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  amount: {
-    color: COLORS.subtext,
-    fontSize: 14,
-  },
-  barTrack: {
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 5,
-  },
-});
+function getStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 24,
+      padding: 22,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    title: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'right',
+      marginBottom: 18,
+    },
+    emptyText: {
+      color: colors.subtext,
+      textAlign: 'right',
+    },
+    row: {
+      marginBottom: 16,
+    },
+    rowHeader: {
+      flexDirection: 'row-reverse',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    category: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    amount: {
+      color: colors.subtext,
+      fontSize: 14,
+    },
+    barTrack: {
+      height: 9,
+      borderRadius: 5,
+      backgroundColor: colors.chipBackground,
+      overflow: 'hidden',
+    },
+    barFill: {
+      height: '100%',
+      borderRadius: 5,
+    },
+  });
+}

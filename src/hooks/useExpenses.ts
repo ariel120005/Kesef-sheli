@@ -1,44 +1,63 @@
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+} from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS } from '../constants';
+import { db } from '../firebase';
 import { Category, Expense } from '../types';
 
-export function useExpenses() {
+export function useExpenses(uid: string | null) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEYS.expenses)
-      .then((raw) => {
-        if (raw) setExpenses(JSON.parse(raw));
-      })
-      .finally(() => setLoaded(true));
-  }, []);
-
-  const persist = useCallback((next: Expense[]) => {
-    setExpenses(next);
-    AsyncStorage.setItem(STORAGE_KEYS.expenses, JSON.stringify(next));
-  }, []);
+    if (!uid || !db) {
+      setExpenses([]);
+      setLoaded(true);
+      return;
+    }
+    setLoaded(false);
+    const expensesQuery = query(collection(db, 'users', uid, 'expenses'), orderBy('date', 'desc'));
+    const unsubscribe = onSnapshot(
+      expensesQuery,
+      (snapshot) => {
+        setExpenses(
+          snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Expense, 'id'>),
+          }))
+        );
+        setLoaded(true);
+      },
+      () => setLoaded(true)
+    );
+    return unsubscribe;
+  }, [uid]);
 
   const addExpense = useCallback(
-    (amount: number, category: Category, note: string) => {
-      const expense: Expense = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    async (amount: number, category: Category, note: string) => {
+      if (!uid || !db) return;
+      await addDoc(collection(db, 'users', uid, 'expenses'), {
         amount,
         category,
         note,
         date: new Date().toISOString(),
-      };
-      persist([expense, ...expenses]);
+      });
     },
-    [expenses, persist]
+    [uid]
   );
 
   const deleteExpense = useCallback(
-    (id: string) => {
-      persist(expenses.filter((e) => e.id !== id));
+    async (id: string) => {
+      if (!uid || !db) return;
+      await deleteDoc(doc(db, 'users', uid, 'expenses', id));
     },
-    [expenses, persist]
+    [uid]
   );
 
   return { expenses, loaded, addExpense, deleteExpense };

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../constants';
+import { ThemeColors, useTheme } from '../theme';
 import { TabKey } from '../types';
 
 interface Tab {
@@ -23,6 +23,9 @@ interface Props {
 }
 
 export function BottomTabBar({ active, onChange }: Props) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   return (
     <View style={styles.container}>
       {TABS.map((tab) => {
@@ -32,7 +35,7 @@ export function BottomTabBar({ active, onChange }: Props) {
             <Ionicons
               name={selected ? tab.iconActive : tab.icon}
               size={24}
-              color={selected ? COLORS.turquoise : COLORS.subtext}
+              color={selected ? colors.turquoise : colors.subtext}
             />
             <Text style={[styles.label, selected && styles.labelActive]}>{tab.label}</Text>
           </Pressable>
@@ -42,27 +45,29 @@ export function BottomTabBar({ active, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row-reverse',
-    backgroundColor: COLORS.card,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.cardBorder,
-    paddingTop: 10,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-    paddingBottom: 8,
-  },
-  label: {
-    fontSize: 12,
-    color: COLORS.subtext,
-    fontWeight: '600',
-  },
-  labelActive: {
-    color: COLORS.turquoise,
-    fontWeight: '700',
-  },
-});
+function getStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flexDirection: 'row-reverse',
+      backgroundColor: colors.card,
+      borderTopWidth: 1,
+      borderTopColor: colors.cardBorder,
+      paddingTop: 10,
+    },
+    tab: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 4,
+      paddingBottom: 8,
+    },
+    label: {
+      fontSize: 12,
+      color: colors.subtext,
+      fontWeight: '600',
+    },
+    labelActive: {
+      color: colors.turquoise,
+      fontWeight: '700',
+    },
+  });
+}

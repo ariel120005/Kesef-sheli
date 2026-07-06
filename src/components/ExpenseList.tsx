@@ -1,6 +1,7 @@
 import React from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS, SHADOW } from '../constants';
+import { SHADOW } from '../constants';
+import { ThemeColors, useTheme } from '../theme';
 import { Expense } from '../types';
 import { formatCurrency, formatDate } from '../utils';
 
@@ -10,6 +11,9 @@ interface Props {
 }
 
 export function ExpenseList({ expenses, onDelete }: Props) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   const sorted = [...expenses].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -47,73 +51,75 @@ export function ExpenseList({ expenses, onDelete }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 24,
-    padding: 22,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.text,
-    textAlign: 'right',
-    marginBottom: 8,
-  },
-  emptyText: {
-    color: COLORS.subtext,
-    textAlign: 'right',
-  },
-  row: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  rowInfo: {
-    flex: 1,
-    marginRight: 14,
-  },
-  rowTop: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-  },
-  category: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '700',
-    textAlign: 'right',
-  },
-  amount: {
-    color: COLORS.turquoise,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  note: {
-    color: COLORS.subtext,
-    fontSize: 13,
-    textAlign: 'right',
-    marginTop: 4,
-  },
-  date: {
-    color: COLORS.subtext,
-    fontSize: 12,
-    textAlign: 'right',
-    marginTop: 4,
-  },
-  deleteButton: {
-    borderRadius: 10,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.deleteBackground,
-  },
-  deleteButtonText: {
-    color: COLORS.danger,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-});
+function getStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 24,
+      padding: 22,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    title: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'right',
+      marginBottom: 8,
+    },
+    emptyText: {
+      color: colors.subtext,
+      textAlign: 'right',
+    },
+    row: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      paddingVertical: 16,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    rowInfo: {
+      flex: 1,
+      marginRight: 14,
+    },
+    rowTop: {
+      flexDirection: 'row-reverse',
+      justifyContent: 'space-between',
+    },
+    category: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '700',
+      textAlign: 'right',
+    },
+    amount: {
+      color: colors.turquoise,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    note: {
+      color: colors.subtext,
+      fontSize: 13,
+      textAlign: 'right',
+      marginTop: 4,
+    },
+    date: {
+      color: colors.subtext,
+      fontSize: 12,
+      textAlign: 'right',
+      marginTop: 4,
+    },
+    deleteButton: {
+      borderRadius: 10,
+      paddingVertical: 7,
+      paddingHorizontal: 12,
+      backgroundColor: colors.deleteBackground,
+    },
+    deleteButtonText: {
+      color: colors.danger,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+  });
+}

@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { CATEGORIES, COLORS, GRADIENTS, SHADOW } from '../constants';
+import { CATEGORIES, GRADIENTS, SHADOW } from '../constants';
+import { ThemeColors, useTheme } from '../theme';
 import { Category } from '../types';
 
 interface Props {
@@ -9,6 +10,8 @@ interface Props {
 }
 
 export function AddExpenseForm({ onAdd }: Props) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
   const [note, setNote] = useState('');
@@ -28,7 +31,7 @@ export function AddExpenseForm({ onAdd }: Props) {
       <TextInput
         style={styles.input}
         placeholder="סכום (₪)"
-        placeholderTextColor={COLORS.subtext}
+        placeholderTextColor={colors.subtext}
         keyboardType="numeric"
         value={amount}
         onChangeText={setAmount}
@@ -63,7 +66,7 @@ export function AddExpenseForm({ onAdd }: Props) {
       <TextInput
         style={styles.input}
         placeholder="הערה (לא חובה)"
-        placeholderTextColor={COLORS.subtext}
+        placeholderTextColor={colors.subtext}
         value={note}
         onChangeText={setNote}
         textAlign="right"
@@ -83,66 +86,68 @@ export function AddExpenseForm({ onAdd }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 24,
-    padding: 22,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.text,
-    textAlign: 'right',
-    marginBottom: 18,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 14,
-    padding: 14,
-    fontSize: 15,
-    color: COLORS.text,
-    marginBottom: 16,
-  },
-  categoryWrap: {
-    flexDirection: 'row-reverse',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
-  },
-  categoryChip: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.chipBackground,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  categoryChipSelected: {
-    borderWidth: 0,
-  },
-  categoryChipText: {
-    color: COLORS.text,
-    fontSize: 13,
-  },
-  categoryChipTextSelected: {
-    color: '#0A0A0F',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  submitButton: {
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  submitButtonText: {
-    color: '#0A0A0F',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-});
+function getStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 24,
+      padding: 22,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    title: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'right',
+      marginBottom: 18,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.chipBackground,
+      borderRadius: 14,
+      padding: 14,
+      fontSize: 15,
+      color: colors.text,
+      marginBottom: 16,
+    },
+    categoryWrap: {
+      flexDirection: 'row-reverse',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginBottom: 16,
+    },
+    categoryChip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.chipBackground,
+      borderRadius: 20,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+    },
+    categoryChipSelected: {
+      borderWidth: 0,
+    },
+    categoryChipText: {
+      color: colors.text,
+      fontSize: 13,
+    },
+    categoryChipTextSelected: {
+      color: '#0A0A0F',
+      fontWeight: '700',
+      fontSize: 13,
+    },
+    submitButton: {
+      borderRadius: 14,
+      paddingVertical: 15,
+      alignItems: 'center',
+    },
+    submitButtonText: {
+      color: '#0A0A0F',
+      fontWeight: '700',
+      fontSize: 15,
+    },
+  });
+}

@@ -1,23 +1,39 @@
 import React, { useState } from 'react';
-import { StatusBar, StyleSheet } from 'react-native';
+import { ActivityIndicator, StatusBar, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { BottomTabBar } from './src/components/BottomTabBar';
-import { COLORS } from './src/constants';
+import { AuthProvider, useAuth } from './src/hooks/useAuth';
 import { HomeScreen } from './src/screens/HomeScreen';
-import { PlaceholderScreen } from './src/screens/PlaceholderScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
+import { ThemeColors, ThemeProvider, useTheme } from './src/theme';
 import { TabKey } from './src/types';
 
-export default function App() {
+function AppContent() {
+  const { colors } = useTheme();
+  const { initializing } = useAuth();
+  const styles = getStyles(colors);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
+
+  if (initializing) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={[styles.container, styles.loadingContainer]}>
+          <StatusBar barStyle={colors.statusBarStyle} />
+          <ActivityIndicator size="large" color={colors.primary} />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle={colors.statusBarStyle} />
 
         {activeTab === 'home' && <HomeScreen />}
-        {activeTab === 'profile' && <PlaceholderScreen icon="person-outline" title="פרופיל" />}
-        {activeTab === 'settings' && <PlaceholderScreen icon="settings-outline" title="הגדרות" />}
+        {activeTab === 'profile' && <ProfileScreen />}
+        {activeTab === 'settings' && <SettingsScreen />}
       </SafeAreaView>
 
       <SafeAreaView style={styles.tabBarSafeArea} edges={['bottom', 'left', 'right']}>
@@ -27,12 +43,28 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  tabBarSafeArea: {
-    backgroundColor: COLORS.card,
-  },
-});
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+function getStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    loadingContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tabBarSafeArea: {
+      backgroundColor: colors.card,
+    },
+  });
+}
