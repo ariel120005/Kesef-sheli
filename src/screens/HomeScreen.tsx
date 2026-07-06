@@ -2,15 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AddExpenseForm } from '../components/AddExpenseForm';
+import { AIInsightsCard } from '../components/AIInsightsCard';
+import { AmountInputModal } from '../components/AmountInputModal';
 import { BudgetMeter } from '../components/BudgetMeter';
 import { CategoryBreakdown } from '../components/CategoryBreakdown';
 import { ExpenseList } from '../components/ExpenseList';
-import { SetBudgetModal } from '../components/SetBudgetModal';
-import { DEMO_BUDGET, DEMO_EXPENSES } from '../demoData';
+import { SavingsGoalCard } from '../components/SavingsGoalCard';
+import { DEMO_BUDGET, DEMO_EXPENSES, DEMO_SAVINGS_GOAL } from '../demoData';
 import { isFirebaseConfigured } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useBudget } from '../hooks/useBudget';
 import { useExpenses } from '../hooks/useExpenses';
+import { useSavingsGoal } from '../hooks/useSavingsGoal';
 import { ThemeColors, useTheme } from '../theme';
 import { Category, Expense } from '../types';
 import { isSameMonth } from '../utils';
@@ -18,6 +21,7 @@ import { isSameMonth } from '../utils';
 function useDemoData() {
   const [expenses, setExpenses] = useState<Expense[]>(DEMO_EXPENSES);
   const [budget, setBudget] = useState<number | null>(DEMO_BUDGET);
+  const [savingsGoal, setSavingsGoal] = useState<number | null>(DEMO_SAVINGS_GOAL);
 
   const addExpense = (amount: number, category: Category, note: string) => {
     setExpenses((prev) => [
@@ -30,7 +34,15 @@ function useDemoData() {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
-  return { expenses, budget, addExpense, deleteExpense, updateBudget: setBudget };
+  return {
+    expenses,
+    budget,
+    savingsGoal,
+    addExpense,
+    deleteExpense,
+    updateBudget: setBudget,
+    updateSavingsGoal: setSavingsGoal,
+  };
 }
 
 export function HomeScreen() {
@@ -39,29 +51,44 @@ export function HomeScreen() {
   const { user } = useAuth();
   const firestoreExpenses = useExpenses(user?.uid ?? null);
   const firestoreBudget = useBudget(user?.uid ?? null);
+  const firestoreSavingsGoal = useSavingsGoal(user?.uid ?? null);
   const demo = useDemoData();
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
+  const [savingsModalVisible, setSavingsModalVisible] = useState(false);
 
-  const { expenses, budget, addExpense, deleteExpense, updateBudget, expensesLoaded, budgetLoaded } =
-    isFirebaseConfigured
-      ? {
-          expenses: firestoreExpenses.expenses,
-          budget: firestoreBudget.budget,
-          addExpense: firestoreExpenses.addExpense,
-          deleteExpense: firestoreExpenses.deleteExpense,
-          updateBudget: firestoreBudget.updateBudget,
-          expensesLoaded: firestoreExpenses.loaded,
-          budgetLoaded: firestoreBudget.loaded,
-        }
-      : {
-          expenses: demo.expenses,
-          budget: demo.budget,
-          addExpense: demo.addExpense,
-          deleteExpense: demo.deleteExpense,
-          updateBudget: demo.updateBudget,
-          expensesLoaded: true,
-          budgetLoaded: true,
-        };
+  const {
+    expenses,
+    budget,
+    savingsGoal,
+    addExpense,
+    deleteExpense,
+    updateBudget,
+    updateSavingsGoal,
+    expensesLoaded,
+    budgetLoaded,
+  } = isFirebaseConfigured
+    ? {
+        expenses: firestoreExpenses.expenses,
+        budget: firestoreBudget.budget,
+        savingsGoal: firestoreSavingsGoal.savingsGoal,
+        addExpense: firestoreExpenses.addExpense,
+        deleteExpense: firestoreExpenses.deleteExpense,
+        updateBudget: firestoreBudget.updateBudget,
+        updateSavingsGoal: firestoreSavingsGoal.updateSavingsGoal,
+        expensesLoaded: firestoreExpenses.loaded,
+        budgetLoaded: firestoreBudget.loaded,
+      }
+    : {
+        expenses: demo.expenses,
+        budget: demo.budget,
+        savingsGoal: demo.savingsGoal,
+        addExpense: demo.addExpense,
+        deleteExpense: demo.deleteExpense,
+        updateBudget: demo.updateBudget,
+        updateSavingsGoal: demo.updateSavingsGoal,
+        expensesLoaded: true,
+        budgetLoaded: true,
+      };
 
   const monthlySpent = useMemo(
     () => expenses.filter((e) => isSameMonth(e.date)).reduce((sum, e) => sum + e.amount, 0),
@@ -110,18 +137,38 @@ export function HomeScreen() {
           onEditBudget={() => setBudgetModalVisible(true)}
         />
 
+        <SavingsGoalCard
+          goal={savingsGoal}
+          budget={budget}
+          spent={monthlySpent}
+          onEditGoal={() => setSavingsModalVisible(true)}
+        />
+
         <AddExpenseForm onAdd={addExpense} />
+
+        <AIInsightsCard expenses={expenses} budget={budget} />
 
         <CategoryBreakdown expenses={expenses} />
 
         <ExpenseList expenses={expenses} onDelete={deleteExpense} />
       </ScrollView>
 
-      <SetBudgetModal
+      <AmountInputModal
         visible={budgetModalVisible}
+        title="הגדרת תקציב חודשי"
+        placeholder="לדוגמה: 5000"
         initialValue={budget}
         onClose={() => setBudgetModalVisible(false)}
         onSave={updateBudget}
+      />
+
+      <AmountInputModal
+        visible={savingsModalVisible}
+        title="הגדרת יעד חיסכון"
+        placeholder="לדוגמה: 500"
+        initialValue={savingsGoal}
+        onClose={() => setSavingsModalVisible(false)}
+        onSave={updateSavingsGoal}
       />
     </View>
   );

@@ -33,7 +33,8 @@ and the UI shows a "Firebase לא מוגדר" message instead of crashing.
 
 ### Firestore data model
 
-- `users/{uid}` — document with a single `budget` field (the monthly budget).
+- `users/{uid}` — document with `budget` (monthly budget) and `savingsGoal` (monthly savings
+  target) fields.
 - `users/{uid}/expenses/{autoId}` — one document per expense (`amount`, `category`, `note`,
   `date`).
 
@@ -57,8 +58,11 @@ service cloud.firestore {
 
 Three tabs, bottom bar always visible, RTL order (rightmost → leftmost): פרופיל, בית, הגדרות.
 
-- **בית (Home)** — the expense tracker (budget meter, add-expense form, category breakdown,
-  recent expenses). Requires being signed in; shows a locked/empty state otherwise.
+- **בית (Home)** — the expense tracker (budget meter, savings goal, add-expense form, AI
+  insights, category breakdown, recent expenses). Requires being signed in; shows a locked/empty
+  state otherwise. When Firebase isn't configured at all (e.g. the public GitHub Pages preview),
+  it instead shows a fully interactive **demo mode** (`src/demoData.ts`) with sample data held in
+  local component state — nothing is persisted, and a "מצב הדגמה" badge makes that clear.
 - **פרופיל (Profile)** — shows the email/password sign-in-or-sign-up form
   (`src/screens/AuthScreen.tsx`) when signed out, or a simple account card (email) when signed in.
 - **הגדרות (Settings)** — light/dark theme toggle (always available), plus sign-out and
@@ -80,6 +84,14 @@ module-level constant), so it re-renders correctly on theme toggle.
 - Set a monthly budget.
 - Visual budget meter: gradient bar fills with % of budget spent, the gradient itself
   changes (green → orange → red) as it approaches/exceeds the budget.
+- Savings goal: a separate target + progress meter, where "saved so far" is derived as
+  `max(budget - spentThisMonth, 0)` — the app has no separate income/deposit tracking, so
+  savings is just unspent budget. Shows "היעד הושג" once saved ≥ goal.
+- AI insights card: a handful of Hebrew, rule-based observations (month-over-month category
+  change, top category this week/month, budget pace) computed locally in `src/insights.ts` —
+  **not** a live LLM call. A real Claude API integration was considered but rejected for now
+  since it would need a server-side proxy (e.g. a Firebase Cloud Function) to keep the API key
+  off the client; the local heuristics were chosen as the no-cost, no-backend option.
 - Breakdown of the current month's spending by category.
 - Recent expenses list, newest first, with per-item delete (confirm before delete).
 - "Current month" is always the real calendar month (no month picker in the MVP).
@@ -106,14 +118,19 @@ src/utils.ts                         currency formatting, month-matching helpers
 src/hooks/useAuth.tsx                AuthProvider/useAuth (sign up/in/out, current user)
 src/hooks/useExpenses.ts             Firestore-backed expenses (onSnapshot, add, delete)
 src/hooks/useBudget.ts               Firestore-backed monthly budget (onSnapshot, update)
-src/screens/HomeScreen.tsx           the expense tracker (auth-gated)
+src/hooks/useSavingsGoal.ts          Firestore-backed savings goal (onSnapshot, update)
+src/insights.ts                      rule-based Hebrew insight generator (no LLM call)
+src/demoData.ts                      sample expenses/budget/goal for demo mode
+src/screens/HomeScreen.tsx           the expense tracker (auth-gated, or demo mode)
 src/screens/AuthScreen.tsx           sign-in / sign-up form
 src/screens/ProfileScreen.tsx        AuthScreen when signed out, account card when signed in
 src/screens/SettingsScreen.tsx       theme toggle, sign out, delete all data
 src/components/BottomTabBar.tsx      fixed 3-tab bottom bar
 src/components/BudgetMeter.tsx       gradient progress bar + set-budget button
-src/components/SetBudgetModal.tsx    modal to input/edit the monthly budget
+src/components/SavingsGoalCard.tsx   savings goal progress bar + set-goal button
+src/components/AmountInputModal.tsx  generic modal to input/edit an amount (budget, savings goal)
 src/components/AddExpenseForm.tsx    amount/category/note inputs + add button
+src/components/AIInsightsCard.tsx    renders the generated insight strings
 src/components/CategoryBreakdown.tsx per-category totals for the current month
 src/components/ExpenseList.tsx       recent expenses with delete
 ```
@@ -128,6 +145,8 @@ src/components/ExpenseList.tsx       recent expenses with delete
 ## Notes for future work (post-MVP, not implemented)
 
 - Sharing one account's data with a partner (e.g. a shared household doc instead of per-uid).
+- Upgrading the AI insights from local heuristics to a real Claude API call, via a Firebase Cloud
+  Function (Blaze plan) that holds the Anthropic API key server-side.
 - Editing an existing expense.
 - Month picker / history across months.
 - Multiple budgets per category.

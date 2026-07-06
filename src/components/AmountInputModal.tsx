@@ -6,12 +6,21 @@ import { ThemeColors, useTheme } from '../theme';
 
 interface Props {
   visible: boolean;
+  title: string;
+  placeholder: string;
   initialValue: number | null;
   onClose: () => void;
   onSave: (value: number) => void;
 }
 
-export function SetBudgetModal({ visible, initialValue, onClose, onSave }: Props) {
+export function AmountInputModal({
+  visible,
+  title,
+  placeholder,
+  initialValue,
+  onClose,
+  onSave,
+}: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const [value, setValue] = useState('');
@@ -31,11 +40,11 @@ export function SetBudgetModal({ visible, initialValue, onClose, onSave }: Props
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={[styles.card, SHADOW]}>
-          <Text style={styles.title}>הגדרת תקציב חודשי</Text>
+          <Text style={styles.title}>{title}</Text>
           <TextInput
             style={styles.input}
             keyboardType="numeric"
-            placeholder="לדוגמה: 5000"
+            placeholder={placeholder}
             placeholderTextColor={colors.subtext}
             value={value}
             onChangeText={setValue}
