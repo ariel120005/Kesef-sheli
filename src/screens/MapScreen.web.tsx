@@ -9,14 +9,14 @@ import { useExpenses } from '../hooks/useExpenses';
 import { ThemeColors, useTheme } from '../theme';
 import { formatCurrency, formatDate } from '../utils';
 
-// Web build of the map tab: a real, fullscreen interactive Leaflet map with CARTO's free
-// basemap tiles (Positron/Voyager for light mode, Dark Matter for dark mode — much closer to a
-// Google-Maps-grade look than plain OpenStreetMap's default style) instead of react-native-webview,
-// since that package has no web implementation. Also wires up Nominatim (OSM's free geocoding
-// service) for a Google-Maps-style place search bar, requests device geolocation to center on the
-// user by default, and drops a pin for every expense that has a location. The native version
-// (src/screens/MapScreen.tsx) stays a simple embed for now — react-native-maps + Google Maps is
-// the planned upgrade there once we're building a real development client (see CLAUDE.md).
+// Web build of the map tab: a real, fullscreen interactive Leaflet map with a Google-Maps-style
+// layer switcher (streets / satellite / topographic, all free tile sources needing no API key)
+// instead of react-native-webview, since that package has no web implementation. Also wires up
+// Nominatim (OSM's free geocoding service) for a place search bar, requests device geolocation to
+// center on the user by default (with a "locate me" button to re-center on demand), and drops a
+// pin for every expense that has a location. The native version (src/screens/MapScreen.tsx) stays
+// a simple embed for now — react-native-maps + Google Maps is the planned upgrade there once
+// we're building a real development client (see CLAUDE.md).
 
 // Leaflet's default marker icon assumes its image assets sit next to leaflet.css, which breaks
 // once bundled — point them at the same CDN version we'd otherwise load the CSS from.
@@ -30,16 +30,45 @@ L.Icon.Default.mergeOptions({
 const LEAFLET_CSS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
 const DEFAULT_CENTER: [number, number] = [31.7683, 35.2137]; // Israel
 const DEFAULT_ZOOM = 8;
-const GEOLOCATION_ZOOM = 13;
+const GEOLOCATION_ZOOM = 15;
 
-const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
-  '&copy; <a href="https://carto.com/attributions">CARTO</a>';
+type LayerType = 'streets' | 'satellite' | 'topo';
 
-function tileUrlForMode(mode: 'dark' | 'light') {
-  return mode === 'dark'
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const LAYER_OPTIONS: { key: LayerType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'satellite', label: 'לוויין', icon: 'image-outline' },
+  { key: 'streets', label: 'רגיל', icon: 'map-outline' },
+  { key: 'topo', label: 'טופוגרפי', icon: 'trail-sign-outline' },
+];
+
+function tileConfigFor(layer: LayerType, mode: 'dark' | 'light') {
+  if (layer === 'satellite') {
+    return {
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+      maxZoom: 19,
+    };
+  }
+  if (layer === 'topo') {
+    return {
+      url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+      subdomains: 'abc',
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | ' +
+        'Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+      maxZoom: 17,
+    };
+  }
+  return {
+    url:
+      mode === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    subdomains: 'abcd',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
+      '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+    maxZoom: 20,
+  };
 }
 
 interface NominatimResult {
@@ -62,10 +91,14 @@ export function MapScreen() {
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const expenseMarkersRef = useRef<L.LayerGroup | null>(null);
   const searchMarkerRef = useRef<L.Marker | null>(null);
+  const locationMarkerRef = useRef<L.CircleMarker | null>(null);
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [activeLayer, setActiveLayer] = useState<LayerType>('satellite');
+  const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   // Load Leaflet's stylesheet once (its own image/font assets aren't bundler-friendly, so this
   // is simpler and more reliable than trying to import the .css file directly).
@@ -78,60 +111,88 @@ export function MapScreen() {
     document.head.appendChild(link);
   }, []);
 
+  // Swaps the active tile layer with a brief cross-fade instead of a hard cut, so switching
+  // between very different-looking layers (e.g. streets → satellite) feels smooth.
+  const applyLayer = (layer: LayerType) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const config = tileConfigFor(layer, mode);
+    const newTileLayer = L.tileLayer(config.url, {
+      subdomains: config.subdomains ?? 'abc',
+      maxZoom: config.maxZoom,
+      detectRetina: true,
+      attribution: config.attribution,
+      opacity: 0,
+    });
+    newTileLayer.addTo(map);
+    const previousLayer = tileLayerRef.current;
+    newTileLayer.once('load', () => {
+      newTileLayer.setOpacity(1);
+      if (previousLayer) map.removeLayer(previousLayer);
+    });
+    tileLayerRef.current = newTileLayer;
+    setActiveLayer(layer);
+  };
+
+  const locateMe = () => {
+    const map = mapRef.current;
+    if (!map || !navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        map.setView([latitude, longitude], GEOLOCATION_ZOOM);
+        locationMarkerRef.current?.remove();
+        locationMarkerRef.current = L.circleMarker([latitude, longitude], {
+          radius: 8,
+          weight: 3,
+          color: '#FFFFFF',
+          fillColor: colors.turquoise,
+          fillOpacity: 1,
+        })
+          .addTo(map)
+          .bindPopup('המיקום שלך');
+        setLocating(false);
+      },
+      () => {
+        // Permission denied or unavailable.
+        setLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 8000 }
+    );
+  };
+
   // Initialize the map once, on the real DOM node behind the View (react-native-web forwards
   // View refs to the underlying <div>), then try to center on the device's real location.
   useEffect(() => {
     const container = mapContainerRef.current as unknown as HTMLElement | null;
     if (!container || mapRef.current) return;
 
-    const map = L.map(container, { zoomControl: true, attributionControl: true }).setView(
+    const map = L.map(container, { zoomControl: false, attributionControl: true }).setView(
       DEFAULT_CENTER,
       DEFAULT_ZOOM
     );
-    const tileLayer = L.tileLayer(tileUrlForMode(mode), {
-      subdomains: 'abcd',
-      maxZoom: 20,
-      detectRetina: true,
-      attribution: TILE_ATTRIBUTION,
-    }).addTo(map);
-    tileLayerRef.current = tileLayer;
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
     mapRef.current = map;
     expenseMarkersRef.current = L.layerGroup().addTo(map);
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          map.setView([latitude, longitude], GEOLOCATION_ZOOM);
-          L.circleMarker([latitude, longitude], {
-            radius: 8,
-            weight: 3,
-            color: '#FFFFFF',
-            fillColor: colors.turquoise,
-            fillOpacity: 1,
-          })
-            .addTo(map)
-            .bindPopup('המיקום שלך');
-        },
-        () => {
-          // Permission denied or unavailable — keep the default Israel view.
-        },
-        { enableHighAccuracy: false, timeout: 8000 }
-      );
-    }
+    applyLayer('satellite');
+    locateMe();
 
     return () => {
       map.remove();
       mapRef.current = null;
       tileLayerRef.current = null;
       expenseMarkersRef.current = null;
+      locationMarkerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Swap the tile style when the app's theme toggles, without recreating the whole map.
+  // Re-apply the streets layer's tile URL when the app's theme toggles (satellite/topo look the
+  // same regardless of theme, so only re-fetch when that's actually the active layer).
   useEffect(() => {
-    tileLayerRef.current?.setUrl(tileUrlForMode(mode));
+    if (activeLayer === 'streets') applyLayer('streets');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
   // Keep the expense pins in sync with the current expense list.
@@ -233,6 +294,50 @@ export function MapScreen() {
       </View>
 
       <View ref={mapContainerRef} style={styles.map} />
+
+      <View style={styles.cornerButtonsWrap}>
+        {layerMenuOpen && (
+          <View style={[styles.layerMenu, styles.shadow]}>
+            {LAYER_OPTIONS.map((option) => {
+              const selected = option.key === activeLayer;
+              return (
+                <Pressable
+                  key={option.key}
+                  style={[styles.layerRow, selected && styles.layerRowSelected]}
+                  onPress={() => {
+                    applyLayer(option.key);
+                    setLayerMenuOpen(false);
+                  }}
+                >
+                  <Ionicons
+                    name={option.icon}
+                    size={18}
+                    color={selected ? colors.turquoise : colors.text}
+                  />
+                  <Text style={[styles.layerRowText, selected && styles.layerRowTextSelected]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        <Pressable
+          style={[styles.cornerButton, styles.shadow]}
+          onPress={() => setLayerMenuOpen((open) => !open)}
+        >
+          <Ionicons name="layers-outline" size={22} color={colors.text} />
+        </Pressable>
+
+        <Pressable style={[styles.cornerButton, styles.shadow]} onPress={locateMe} disabled={locating}>
+          {locating ? (
+            <ActivityIndicator size="small" color={colors.turquoise} />
+          ) : (
+            <Ionicons name="locate" size={22} color={colors.turquoise} />
+          )}
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -309,6 +414,52 @@ function getStyles(colors: ThemeColors) {
       color: colors.text,
       fontSize: 13,
       textAlign: 'right',
+    },
+    cornerButtonsWrap: {
+      position: 'absolute',
+      bottom: 24,
+      right: 16,
+      zIndex: 1000,
+      alignItems: 'center',
+      gap: 12,
+    },
+    cornerButton: {
+      width: 46,
+      height: 46,
+      borderRadius: 23,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    layerMenu: {
+      marginBottom: 4,
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      overflow: 'hidden',
+      minWidth: 130,
+    },
+    layerRow: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+    },
+    layerRowSelected: {
+      backgroundColor: colors.chipBackground,
+    },
+    layerRowText: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    layerRowTextSelected: {
+      color: colors.turquoise,
+      fontWeight: '700',
     },
   });
 }

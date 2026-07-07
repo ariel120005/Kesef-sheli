@@ -98,20 +98,23 @@ separate state — switching bottom tabs always clears any open overlay screen.
   "טיולים") that each open their respective `OverlayScreen` on tap. Same demo-mode data as Home —
   see `src/hooks/useDemoBudgetData.tsx` below.
 - **מפה (Map)** — on web (`src/screens/MapScreen.web.tsx`), a real, fullscreen interactive
-  `leaflet` map using CARTO's free basemap tiles — Dark Matter in dark mode, Voyager in light mode
-  (swapped live on theme toggle via `tileLayer.setUrl`, no remount) — since plain OpenStreetMap's
-  default tile style reads as low-effort/dated next to Google Maps or Waze. On mount it requests
-  the browser's geolocation permission and recenters on the device's real location if granted
-  (falls back to a default Israel view otherwise), dropping a turquoise "your location" dot. Demo
-  expenses that have a `location` (lat/lng) show as pins — tapping one opens a popup with the
-  expense's category/amount/note/date. A permanent Google-Maps-style search bar floats over the
-  top of the map (not a toggled icon) and calls Nominatim (OSM's free geocoding API, debounced
-  ~450ms) as you type, showing an autocomplete dropdown of matching places; picking one pans/zooms
-  the map there and drops a marker. The native version (`src/screens/MapScreen.tsx`,
-  `react-native-webview` with a static world embed) is a placeholder for now — see "Notes for
-  future work" for the `react-native-maps` + Google Maps upgrade planned once there's a real
-  development build to test it on. Picked via Metro's `.web.tsx` platform extension the same way
-  `firebase.ts` / `firebase.web.ts` are.
+  `leaflet` map with a Google-Maps-style **layer switcher** (floating button, bottom-right) between
+  three free, keyless tile sources: satellite (Esri World Imagery — the default layer), streets
+  (CARTO Voyager/Dark Matter, theme-matched and swapped live on toggle), and topographic
+  (OpenTopoMap). Switching layers cross-fades the new tiles in before removing the old layer
+  (waits for the new layer's `load` event), instead of a hard cut. A **"locate me" button** next to
+  the layer switcher re-centers the map on the device's live location on demand; the map also tries
+  this once automatically on mount (falls back to a default Israel view if geolocation is denied or
+  unavailable), dropping a turquoise "your location" dot either way. Demo expenses that have a
+  `location` (lat/lng) show as pins — tapping one opens a popup with the expense's
+  category/amount/note/date. A permanent Google-Maps-style search bar floats over the top of the
+  map (not a toggled icon) and calls Nominatim (OSM's free geocoding API, debounced ~450ms) as you
+  type, showing an autocomplete dropdown of matching places; picking one pans/zooms the map there
+  and drops a marker. The native version (`src/screens/MapScreen.tsx`, `react-native-webview` with
+  a static world embed) is a placeholder for now — see "Notes for future work" for the
+  `react-native-maps` + Google Maps upgrade planned once there's a real development build to test
+  it on. Picked via Metro's `.web.tsx` platform extension the same way `firebase.ts` /
+  `firebase.web.ts` are.
 - **Profile dropdown menu** (opened from the top bar's profile icon) — rows: הגדרות, then
   התחברות/החשבון שלי (label flips once signed in), then טיולים and יעד חיסכון. The latter two are
   per-account features: in demo mode they're always shown (there's no sign-in concept there), but
@@ -196,11 +199,12 @@ module-level constant), so it re-renders correctly on theme toggle.
   notification text into a charge (→ expense, category guessed from merchant) or a credit (→
   reimbursement, same concept as trip mode). This is parsing logic only — see "Notes for future
   work" for what's still needed to actually read notifications on-device.
-- Map tab (web): a real, fullscreen Leaflet map with CARTO tiles (dark/light theme-matched),
-  geolocation on load, a permanent Nominatim place-search bar (autocomplete, pans the map to the
-  picked place with a pin), and pins for any expense with a `location`. Demo data has four
-  expenses with real Tel-Aviv-area coordinates so pins show up out of the box. Native is
-  a placeholder for now (see "Notes for future work").
+- Map tab (web): a real, fullscreen Leaflet map with a layer switcher (satellite default, plus
+  streets and topographic — all free, keyless tile sources), a "locate me" button, geolocation on
+  load, a permanent Nominatim place-search bar (autocomplete, pans the map to the picked place with
+  a pin), and pins for any expense with a `location`. Demo data has four expenses with real
+  Tel-Aviv-area coordinates so pins show up out of the box. Native is a placeholder for now (see
+  "Notes for future work").
 
 ## RTL approach
 
