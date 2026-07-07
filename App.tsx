@@ -21,6 +21,7 @@ function AppContent() {
   const styles = getStyles(colors);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [overlayScreen, setOverlayScreen] = useState<OverlayScreen | null>(null);
+  const [mapSearchOpen, setMapSearchOpen] = useState(false);
 
   if (initializing) {
     return (
@@ -40,7 +41,14 @@ function AppContent() {
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar barStyle={colors.statusBarStyle} />
 
-        {overlayScreen === null && <TopBar onNavigate={setOverlayScreen} />}
+        {overlayScreen === null && (
+          <TopBar
+            onNavigate={setOverlayScreen}
+            onSearchPress={() => {
+              if (activeTab === 'map') setMapSearchOpen((open) => !open);
+            }}
+          />
+        )}
 
         {overlayScreen === null && activeTab === 'home' && <HomeScreen />}
         {overlayScreen === null && activeTab === 'insights' && (
@@ -49,7 +57,9 @@ function AppContent() {
             onOpenSavingsGoal={() => setOverlayScreen('savingsGoal')}
           />
         )}
-        {overlayScreen === null && activeTab === 'map' && <MapScreen />}
+        {overlayScreen === null && activeTab === 'map' && (
+          <MapScreen searchOpen={mapSearchOpen} onCloseSearch={() => setMapSearchOpen(false)} />
+        )}
         {overlayScreen === 'settings' && <SettingsScreen onBack={closeOverlay} />}
         {overlayScreen === 'account' && <ProfileScreen onBack={closeOverlay} />}
         {overlayScreen === 'trips' && <TripsScreen onBack={closeOverlay} />}
@@ -61,6 +71,7 @@ function AppContent() {
           active={activeTab}
           onChange={(tab) => {
             closeOverlay();
+            setMapSearchOpen(false);
             setActiveTab(tab);
           }}
         />

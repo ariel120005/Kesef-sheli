@@ -9,9 +9,10 @@ import { OverlayScreen } from '../types';
 
 interface Props {
   onNavigate: (screen: OverlayScreen) => void;
+  onSearchPress: () => void;
 }
 
-export function TopBar({ onNavigate }: Props) {
+export function TopBar({ onNavigate, onSearchPress }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const { user } = useAuth();
@@ -33,7 +34,7 @@ export function TopBar({ onNavigate }: Props) {
         <Pressable onPress={() => setMenuOpen((open) => !open)} style={styles.iconButton} hitSlop={8}>
           <Ionicons name="person-circle-outline" size={28} color={colors.text} />
         </Pressable>
-        <Pressable onPress={() => {}} style={styles.iconButton} hitSlop={8}>
+        <Pressable onPress={onSearchPress} style={styles.iconButton} hitSlop={8}>
           <Ionicons name="search-outline" size={22} color={colors.text} />
         </Pressable>
       </View>

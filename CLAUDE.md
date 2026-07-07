@@ -17,9 +17,10 @@ same account's data.
 - No navigation library — screens are switched by plain state in `App.tsx`, with a custom
   bottom tab bar (see below).
 - Charts: `react-native-svg` for the category donut chart (works in Expo Go and on web via
-  react-native-web, no custom native code). Map tab: `react-native-webview` on native (also
-  Expo-Go-compatible) with a platform-specific `MapScreen.web.tsx` plain `<iframe>` fallback,
-  since react-native-webview has no web implementation.
+  react-native-web, no custom native code). Map tab: a real `leaflet` map (OpenStreetMap tiles,
+  free, no API key) plus Nominatim place search on web (`MapScreen.web.tsx`); `react-native-webview`
+  with a static world embed on native for now (`MapScreen.tsx`) until a future development build
+  moves native to `react-native-maps` + Google Maps — see "Notes for future work".
 
 ## Firebase setup
 
@@ -77,8 +78,10 @@ service cloud.firestore {
 
 Three bottom tabs, bar always visible, RTL order (rightmost → leftmost): תובנות, בית, מפה.
 `App.tsx` also renders a fixed top row (`src/components/TopBar.tsx`) above the tab content — a
-profile icon (rightmost) that opens a dropdown menu, and a search icon next to it (currently a UI
-placeholder with no behavior wired up yet). Settings, the account/sign-in screen, Trips, and the
+profile icon (rightmost) that opens a dropdown menu, and a search icon next to it. The search icon
+is a no-op placeholder on every tab except מפה, where it opens the Nominatim place-search box (see
+below) — `App.tsx` owns the `mapSearchOpen` boolean and passes `onSearchPress`/`searchOpen` between
+`TopBar` and `MapScreen` since they're siblings. Settings, the account/sign-in screen, Trips, and the
 Savings Goal screen are **not** tabs — they're `OverlayScreen`s (`src/types.ts`) reached only via
 the profile dropdown menu (or, for Trips/Savings Goal, via a shortcut card on the Insights tab),
 each with its own back button that returns to whichever tab was active. `App.tsx` holds
@@ -94,10 +97,16 @@ separate state — switching bottom tabs always clears any open overlay screen.
   (`CategoryDonutChart.tsx`, `react-native-svg`) with a percentage legend, plus two small shortcut
   cards ("יעד חיסכון" and "טיולים") that each open their respective `OverlayScreen` on tap. Same
   demo-mode data as Home — see `src/hooks/useDemoBudgetData.tsx` below.
-- **מפה (Map)** — a general-purpose world map (OpenStreetMap embed), not tied to any of the app's
-  own data — there's no location tracking anywhere in the app. `src/screens/MapScreen.tsx` (native,
-  `react-native-webview`) vs `MapScreen.web.tsx` (plain `<iframe>`, since that package has no web
-  implementation), picked via Metro's `.web.tsx` platform extension the same way `firebase.ts` /
+- **מפה (Map)** — on web (`src/screens/MapScreen.web.tsx`), a real interactive `leaflet` map with
+  OpenStreetMap tiles, centered on Israel by default. Demo expenses that have a `location` (lat/lng)
+  show as pins — tapping one opens a popup with the expense's category/amount/note/date. The top
+  bar's search icon (see below) only does something on this tab: it opens a Google-Maps-style
+  search box that calls Nominatim (OSM's free geocoding API, debounced ~450ms) as you type,
+  showing an autocomplete dropdown of matching places; picking one pans/zooms the map there and
+  drops a marker. The native version (`src/screens/MapScreen.tsx`, `react-native-webview` with a
+  static world embed) is a placeholder for now — see "Notes for future work" for the
+  `react-native-maps` + Google Maps upgrade planned once there's a real development build to test
+  it on. Picked via Metro's `.web.tsx` platform extension the same way `firebase.ts` /
   `firebase.web.ts` are.
 - **Profile dropdown menu** (opened from the top bar's profile icon) — rows: הגדרות, then
   התחברות/החשבון שלי (label flips once signed in), then טיולים and יעד חיסכון. The latter two are
@@ -183,7 +192,10 @@ module-level constant), so it re-renders correctly on theme toggle.
   notification text into a charge (→ expense, category guessed from merchant) or a credit (→
   reimbursement, same concept as trip mode). This is parsing logic only — see "Notes for future
   work" for what's still needed to actually read notifications on-device.
-- Map tab: a general-purpose world map, unrelated to any expense/trip data.
+- Map tab (web): a real Leaflet + OpenStreetMap map, Nominatim place search (autocomplete, pans
+  the map to the picked place with a pin), and pins for any expense with a `location`. Demo data
+  has four expenses with real Tel-Aviv-area coordinates so pins show up out of the box. Native is
+  a placeholder for now (see "Notes for future work").
 
 ## RTL approach
 
@@ -222,7 +234,8 @@ src/screens/ProfileScreen.tsx        AuthScreen when signed out, account card wh
 src/screens/TripsScreen.tsx          trip list + trip detail (auth-gated, or demo mode; overlay screen)
 src/screens/SavingsGoalScreen.tsx    full savings-goal card + edit modal (overlay screen)
 src/screens/SettingsScreen.tsx       theme toggle, sign out, delete all data (overlay screen)
-src/screens/MapScreen.tsx / .web.tsx world map (react-native-webview vs plain <iframe>)
+src/screens/MapScreen.tsx / .web.tsx world map: static react-native-webview embed (native) vs
+                                      real leaflet map + Nominatim place search + expense pins (web)
 src/components/TopBar.tsx            profile icon (+ dropdown menu) and search icon, shown above the tab content
 src/components/BottomTabBar.tsx      fixed 3-tab bottom bar (תובנות / בית / מפה)
 src/components/BudgetMeter.tsx       gradient progress bar + set-budget button
@@ -258,8 +271,13 @@ src/components/EditTripTransactionModal.tsx edit an existing trip transaction's 
   Function (Blaze plan) that holds the Anthropic API key server-side.
 - Month picker / history across months.
 - Multiple budgets per category.
-- Charts (currently just a list + a single progress bar).
 - Password reset / email verification.
+- **Map tab, native (Android).** `MapScreen.tsx` is currently just a static world embed via
+  `react-native-webview` — the plan is to switch to `react-native-maps` with the Google Maps
+  provider for a real interactive native map (pinch-zoom, native place search, etc.), matching what
+  `MapScreen.web.tsx` already does with Leaflet. `react-native-maps` needs a Google Maps API key and
+  (like the bank-notification listener) isn't in Expo Go's precompiled module set, so this also
+  waits on an EAS development build to actually test on a device.
 - **Bank-notification auto-detection, native wiring (Android only).** The text-parsing basis
   (`src/bankNotificationParser.ts`) is done and unit-testable today, but reading real notifications
   requires native code this managed-workflow project doesn't have yet:

@@ -22,6 +22,9 @@ export interface Expense {
   // converted ILS value, these preserve what was actually paid on the receipt.
   originalAmount?: number | null;
   originalCurrency?: Currency | null;
+  // Optional — only set for expenses tied to a physical place (e.g. picked on the Map tab's
+  // search), so they can be shown as pins. Most expenses have no location.
+  location?: { lat: number; lng: number } | null;
 }
 
 export type TabKey = 'map' | 'home' | 'insights';

@@ -11,10 +11,38 @@ export const DEMO_BUDGET = 4500;
 export const DEMO_SAVINGS_GOAL = 2000;
 
 export const DEMO_EXPENSES: Expense[] = [
-  { id: 'demo-1', amount: 320, category: 'מזון', note: 'סופר', date: dayOfMonth(0, 2) },
-  { id: 'demo-2', amount: 150, category: 'תחבורה', note: 'דלק', date: dayOfMonth(0, 5) },
-  { id: 'demo-3', amount: 89, category: 'בילויים', note: 'קולנוע', date: dayOfMonth(0, 8) },
-  { id: 'demo-4', amount: 450, category: 'קניות', note: '', date: dayOfMonth(0, 1) },
+  {
+    id: 'demo-1',
+    amount: 320,
+    category: 'מזון',
+    note: 'סופר',
+    date: dayOfMonth(0, 2),
+    location: { lat: 32.0809, lng: 34.7806 },
+  },
+  {
+    id: 'demo-2',
+    amount: 150,
+    category: 'תחבורה',
+    note: 'דלק',
+    date: dayOfMonth(0, 5),
+    location: { lat: 32.0685, lng: 34.7825 },
+  },
+  {
+    id: 'demo-3',
+    amount: 89,
+    category: 'בילויים',
+    note: 'קולנוע',
+    date: dayOfMonth(0, 8),
+    location: { lat: 32.0754, lng: 34.7741 },
+  },
+  {
+    id: 'demo-4',
+    amount: 450,
+    category: 'קניות',
+    note: 'איקאה',
+    date: dayOfMonth(0, 1),
+    location: { lat: 32.0455, lng: 34.8172 },
+  },
   {
     id: 'demo-7',
     amount: 1800,
