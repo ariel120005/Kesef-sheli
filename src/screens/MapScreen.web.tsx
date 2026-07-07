@@ -1,34 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
-import L from 'leaflet';
+import mapboxgl from 'mapbox-gl';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { isFirebaseConfigured } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useDemoBudgetData } from '../hooks/useDemoBudgetData';
 import { useExpenses } from '../hooks/useExpenses';
+import { isMapboxConfigured, MAPBOX_TOKEN } from '../mapboxConfig';
 import { ThemeColors, useTheme } from '../theme';
 import { formatCurrency, formatDate } from '../utils';
 
-// Web build of the map tab: a real, fullscreen interactive Leaflet map with a Google-Maps-style
-// layer switcher (streets / satellite / topographic, all free tile sources needing no API key)
-// instead of react-native-webview, since that package has no web implementation. Also wires up
-// Nominatim (OSM's free geocoding service) for a place search bar, requests device geolocation to
+// Web build of the map tab: a real, fullscreen interactive Mapbox GL map (vector tiles, the same
+// rendering engine behind mapbox.com — noticeably higher production quality than raster
+// OSM/Esri/CARTO tiles) with a Google-Maps-style layer switcher, instead of react-native-webview,
+// since that package has no web implementation. Also wires up Nominatim (OSM's free geocoding
+// service, unrelated to Mapbox's own quota) for a place search bar, requests device geolocation to
 // center on the user by default (with a "locate me" button to re-center on demand), and drops a
 // pin for every expense that has a location. The native version (src/screens/MapScreen.tsx) stays
 // a simple embed for now — react-native-maps + Google Maps is the planned upgrade there once
 // we're building a real development client (see CLAUDE.md).
 
-// Leaflet's default marker icon assumes its image assets sit next to leaflet.css, which breaks
-// once bundled — point them at the same CDN version we'd otherwise load the CSS from.
-delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+if (isMapboxConfigured) {
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+}
 
-const LEAFLET_CSS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-const DEFAULT_CENTER: [number, number] = [31.7683, 35.2137]; // Israel
+const MAPBOX_CSS_URL = 'https://api.mapbox.com/mapbox-gl-js/v3.25.0/mapbox-gl.css';
+const DEFAULT_CENTER: [number, number] = [35.2137, 31.7683]; // [lng, lat] — Israel
 const DEFAULT_ZOOM = 8;
 const GEOLOCATION_ZOOM = 15;
 
@@ -40,42 +37,23 @@ const LAYER_OPTIONS: { key: LayerType; label: string; icon: keyof typeof Ionicon
   { key: 'topo', label: 'טופוגרפי', icon: 'trail-sign-outline' },
 ];
 
-// Esri's reference overlays (transparent backgrounds, meant to sit on top of World_Imagery) — the
-// same "hybrid" trick Google Maps uses: satellite photography underneath, roads/place names on top.
-const SATELLITE_LABEL_OVERLAYS = [
-  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
-  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-];
+// satellite-streets already bakes road/place labels onto the imagery (Mapbox's own "hybrid"
+// style), so unlike the old Esri setup no separate label overlay is needed.
+function styleUrlFor(layer: LayerType, mode: 'dark' | 'light') {
+  if (layer === 'satellite') return 'mapbox://styles/mapbox/satellite-streets-v12';
+  if (layer === 'topo') return 'mapbox://styles/mapbox/outdoors-v12';
+  return mode === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/streets-v12';
+}
 
-function tileConfigFor(layer: LayerType, mode: 'dark' | 'light') {
-  if (layer === 'satellite') {
-    return {
-      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
-      maxZoom: 19,
-    };
-  }
-  if (layer === 'topo') {
-    return {
-      url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-      subdomains: 'abc',
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | ' +
-        'Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
-      maxZoom: 17,
-    };
-  }
-  return {
-    url:
-      mode === 'dark'
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    subdomains: 'abcd',
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
-      '&copy; <a href="https://carto.com/attributions">CARTO</a>',
-    maxZoom: 20,
-  };
+function createDotElement(color: string) {
+  const el = document.createElement('div');
+  el.style.width = '18px';
+  el.style.height = '18px';
+  el.style.borderRadius = '50%';
+  el.style.backgroundColor = color;
+  el.style.border = '3px solid #FFFFFF';
+  el.style.boxShadow = '0 0 6px rgba(0,0,0,0.4)';
+  return el;
 }
 
 interface NominatimResult {
@@ -94,12 +72,10 @@ export function MapScreen() {
   const expenses = isFirebaseConfigured ? firestoreExpenses.expenses : demo.expenses;
 
   const mapContainerRef = useRef<View>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const tileLayerRef = useRef<L.TileLayer | null>(null);
-  const labelOverlaysRef = useRef<L.TileLayer[]>([]);
-  const expenseMarkersRef = useRef<L.LayerGroup | null>(null);
-  const searchMarkerRef = useRef<L.Marker | null>(null);
-  const locationMarkerRef = useRef<L.CircleMarker | null>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const expenseMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const searchMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const locationMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NominatimResult[]>([]);
@@ -108,45 +84,18 @@ export function MapScreen() {
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
   const [locating, setLocating] = useState(false);
 
-  // Load Leaflet's stylesheet once (its own image/font assets aren't bundler-friendly, so this
-  // is simpler and more reliable than trying to import the .css file directly).
+  // Load Mapbox GL's stylesheet once (matches the installed mapbox-gl package version).
   useEffect(() => {
-    if (document.getElementById('leaflet-css')) return;
+    if (document.getElementById('mapbox-gl-css')) return;
     const link = document.createElement('link');
-    link.id = 'leaflet-css';
+    link.id = 'mapbox-gl-css';
     link.rel = 'stylesheet';
-    link.href = LEAFLET_CSS_URL;
+    link.href = MAPBOX_CSS_URL;
     document.head.appendChild(link);
   }, []);
 
-  // Swaps the active tile layer with a brief cross-fade instead of a hard cut, so switching
-  // between very different-looking layers (e.g. streets → satellite) feels smooth. Satellite gets
-  // Esri's transparent roads/places reference tiles stacked on top — a plain satellite photo has
-  // no street or place names on it otherwise, unlike Google Maps' "hybrid" view.
   const applyLayer = (layer: LayerType) => {
-    const map = mapRef.current;
-    if (!map) return;
-    const config = tileConfigFor(layer, mode);
-    const newTileLayer = L.tileLayer(config.url, {
-      subdomains: config.subdomains ?? 'abc',
-      maxZoom: config.maxZoom,
-      detectRetina: true,
-      attribution: config.attribution,
-      opacity: 0,
-    });
-    newTileLayer.addTo(map);
-    const previousLayer = tileLayerRef.current;
-    const previousOverlays = labelOverlaysRef.current;
-    newTileLayer.once('load', () => {
-      newTileLayer.setOpacity(1);
-      if (previousLayer) map.removeLayer(previousLayer);
-      previousOverlays.forEach((overlay) => map.removeLayer(overlay));
-      labelOverlaysRef.current =
-        layer === 'satellite'
-          ? SATELLITE_LABEL_OVERLAYS.map((url) => L.tileLayer(url, { maxZoom: 19 }).addTo(map))
-          : [];
-    });
-    tileLayerRef.current = newTileLayer;
+    mapRef.current?.setStyle(styleUrlFor(layer, mode));
     setActiveLayer(layer);
   };
 
@@ -157,17 +106,12 @@ export function MapScreen() {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        map.setView([latitude, longitude], GEOLOCATION_ZOOM);
+        map.flyTo({ center: [longitude, latitude], zoom: GEOLOCATION_ZOOM });
         locationMarkerRef.current?.remove();
-        locationMarkerRef.current = L.circleMarker([latitude, longitude], {
-          radius: 8,
-          weight: 3,
-          color: '#FFFFFF',
-          fillColor: colors.turquoise,
-          fillOpacity: 1,
-        })
-          .addTo(map)
-          .bindPopup('המיקום שלך');
+        locationMarkerRef.current = new mapboxgl.Marker({ element: createDotElement(colors.turquoise) })
+          .setLngLat([longitude, latitude])
+          .setPopup(new mapboxgl.Popup({ closeButton: false }).setText('המיקום שלך'))
+          .addTo(map);
         setLocating(false);
       },
       () => {
@@ -181,52 +125,58 @@ export function MapScreen() {
   // Initialize the map once, on the real DOM node behind the View (react-native-web forwards
   // View refs to the underlying <div>), then try to center on the device's real location.
   useEffect(() => {
+    if (!isMapboxConfigured) return;
     const container = mapContainerRef.current as unknown as HTMLElement | null;
     if (!container || mapRef.current) return;
 
-    const map = L.map(container, { zoomControl: false, attributionControl: true }).setView(
-      DEFAULT_CENTER,
-      DEFAULT_ZOOM
-    );
-    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+    const map = new mapboxgl.Map({
+      container,
+      style: styleUrlFor('satellite', mode),
+      center: DEFAULT_CENTER,
+      zoom: DEFAULT_ZOOM,
+      attributionControl: true,
+    });
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-left');
     mapRef.current = map;
-    expenseMarkersRef.current = L.layerGroup().addTo(map);
-    applyLayer('satellite');
     locateMe();
 
     return () => {
       map.remove();
       mapRef.current = null;
-      tileLayerRef.current = null;
-      labelOverlaysRef.current = [];
-      expenseMarkersRef.current = null;
+      expenseMarkersRef.current = [];
+      searchMarkerRef.current = null;
       locationMarkerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-apply the streets layer's tile URL when the app's theme toggles (satellite/topo look the
-  // same regardless of theme, so only re-fetch when that's actually the active layer).
+  // Re-apply the streets style when the app's theme toggles (satellite/topo look the same
+  // regardless of theme, so only re-fetch when that's actually the active layer).
   useEffect(() => {
-    if (activeLayer === 'streets') applyLayer('streets');
+    if (activeLayer === 'streets') mapRef.current?.setStyle(styleUrlFor('streets', mode));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
-  // Keep the expense pins in sync with the current expense list.
+  // Keep the expense pins in sync with the current expense list. Markers are plain DOM overlays,
+  // not part of the map's style, so they survive layer switches (setStyle) untouched.
   useEffect(() => {
-    const layer = expenseMarkersRef.current;
-    if (!layer) return;
-    layer.clearLayers();
-    for (const expense of expenses) {
-      if (!expense.location) continue;
-      const popupHtml = `
-        <strong>${expense.category}</strong><br/>
-        ${formatCurrency(expense.amount)}
-        ${expense.note ? `<br/>${expense.note}` : ''}
-        <br/><span style="opacity:0.65">${formatDate(expense.date)}</span>
-      `;
-      L.marker([expense.location.lat, expense.location.lng]).bindPopup(popupHtml).addTo(layer);
-    }
+    const map = mapRef.current;
+    if (!map) return;
+    expenseMarkersRef.current.forEach((marker) => marker.remove());
+    expenseMarkersRef.current = expenses
+      .filter((expense) => !!expense.location)
+      .map((expense) => {
+        const popupHtml = `
+          <strong>${expense.category}</strong><br/>
+          ${formatCurrency(expense.amount)}
+          ${expense.note ? `<br/>${expense.note}` : ''}
+          <br/><span style="opacity:0.65">${formatDate(expense.date)}</span>
+        `;
+        return new mapboxgl.Marker()
+          .setLngLat([expense.location!.lng, expense.location!.lat])
+          .setPopup(new mapboxgl.Popup().setHTML(popupHtml))
+          .addTo(map);
+      });
   }, [expenses]);
 
   // Debounced Nominatim search as the user types.
@@ -258,9 +208,13 @@ export function MapScreen() {
     if (!map) return;
     const lat = parseFloat(result.lat);
     const lon = parseFloat(result.lon);
-    map.setView([lat, lon], 15);
+    map.flyTo({ center: [lon, lat], zoom: 15 });
     searchMarkerRef.current?.remove();
-    searchMarkerRef.current = L.marker([lat, lon]).addTo(map).bindPopup(result.display_name).openPopup();
+    searchMarkerRef.current = new mapboxgl.Marker()
+      .setLngLat([lon, lat])
+      .setPopup(new mapboxgl.Popup().setText(result.display_name))
+      .addTo(map)
+      .togglePopup();
     setResults([]);
     setQuery(result.display_name);
   };
@@ -271,6 +225,16 @@ export function MapScreen() {
     searchMarkerRef.current?.remove();
     searchMarkerRef.current = null;
   };
+
+  if (!isMapboxConfigured) {
+    return (
+      <View style={[styles.container, styles.messageContainer]}>
+        <Ionicons name="map-outline" size={44} color={colors.subtext} />
+        <Text style={styles.messageTitle}>Mapbox לא מוגדר</Text>
+        <Text style={styles.messageSubtitle}>הוסיפו EXPO_PUBLIC_MAPBOX_TOKEN לקובץ .env</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -363,6 +327,23 @@ function getStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
       flex: 1,
+    },
+    messageContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 32,
+      gap: 12,
+    },
+    messageTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    messageSubtitle: {
+      fontSize: 14,
+      color: colors.subtext,
+      textAlign: 'center',
     },
     map: {
       flex: 1,

@@ -17,10 +17,33 @@ same account's data.
 - No navigation library — screens are switched by plain state in `App.tsx`, with a custom
   bottom tab bar (see below).
 - Charts: `react-native-svg` for the category donut chart (works in Expo Go and on web via
-  react-native-web, no custom native code). Map tab: a real `leaflet` map (CARTO's free basemap
-  tiles, no API key) plus Nominatim place search on web (`MapScreen.web.tsx`); `react-native-webview`
-  with a static world embed on native for now (`MapScreen.tsx`) until a future development build
-  moves native to `react-native-maps` + Google Maps — see "Notes for future work".
+  react-native-web, no custom native code). Map tab (web): `mapbox-gl` (vector-tile rendering,
+  needs a free Mapbox access token — see "Mapbox setup" below) plus Nominatim place search
+  (`MapScreen.web.tsx`); `react-native-webview` with a static world embed on native for now
+  (`MapScreen.tsx`) until a future development build moves native to `react-native-maps` + Google
+  Maps — see "Notes for future work".
+
+## Mapbox setup
+
+The web Map tab renders with Mapbox GL JS, which needs a free Mapbox access token (not required
+for any other part of the app):
+
+1. Sign up (or log in) at [mapbox.com](https://www.mapbox.com) — no credit card needed for the
+   free tier (50,000 map loads/month, reset monthly).
+2. Go to your [Access tokens page](https://account.mapbox.com/access-tokens/). Mapbox creates a
+   "Default public token" automatically — you can use that, or click **Create a token** to make a
+   project-specific one (name it e.g. "kesef-sheli"); the default public scopes (styles:read,
+   fonts:read, tilesets:read, etc.) are all this app needs.
+3. Copy the token (starts with `pk.`).
+4. Add it to your `.env` file (copy `.env.example` first if you haven't already):
+   `EXPO_PUBLIC_MAPBOX_TOKEN=pk.your_token_here`.
+5. Restart `npm start` (or re-run the web export) so the new env var gets picked up — like the
+   Firebase vars, it's inlined into the JS bundle at build time, so an already-running dev server
+   or an already-exported `/docs` build won't pick up a token added afterwards.
+
+If the token isn't set, the Map tab shows a "Mapbox לא מוגדר" message instead of crashing — same
+pattern as `isFirebaseConfigured`. This is why the public GitHub Pages preview's Map tab shows that
+message: no real token is committed there, same as Firebase.
 
 ## Firebase setup
 
@@ -98,23 +121,25 @@ separate state — switching bottom tabs always clears any open overlay screen.
   "טיולים") that each open their respective `OverlayScreen` on tap. Same demo-mode data as Home —
   see `src/hooks/useDemoBudgetData.tsx` below.
 - **מפה (Map)** — on web (`src/screens/MapScreen.web.tsx`), a real, fullscreen interactive
-  `leaflet` map with a Google-Maps-style **layer switcher** (floating button, bottom-right) between
-  three free, keyless tile sources: satellite (Esri World Imagery — the default layer, with Esri's
-  transparent roads/place-name reference tiles stacked on top, the same "hybrid" trick Google Maps
-  uses so satellite view isn't just an unlabeled photo), streets (CARTO Voyager/Dark Matter,
-  theme-matched and swapped live on toggle), and topographic (OpenTopoMap). Switching layers
-  cross-fades the new tiles in before removing the old layer (waits for the new layer's `load`
-  event), instead of a hard cut. A **"locate me" button** next to the layer switcher re-centers the
-  map on the device's live location on demand; the map also tries this once automatically on mount
-  (falls back to a default Israel view if geolocation is denied or unavailable), dropping a
-  turquoise "your location" dot either way. Demo expenses that have a `location` (lat/lng) show as
-  pins — tapping one opens a popup with the expense's category/amount/note/date. A permanent
-  Google-Maps-style search bar floats over the top of the map (not a toggled icon) and calls
-  Nominatim (OSM's free geocoding API, debounced ~450ms) as you type, showing an autocomplete
-  dropdown of matching places; picking one pans/zooms the map there and drops a marker. The top bar
-  itself (profile + search icons) floats over the map here too — translucent dark background,
-  white icons — instead of reserving its own row like on every other tab (`TopBar`'s `floating`
-  prop), so the map truly fills the screen edge-to-edge. The native version (`src/screens/MapScreen.tsx`,
+  **Mapbox GL** map (vector tiles, needs `EXPO_PUBLIC_MAPBOX_TOKEN` — see "Mapbox setup" above)
+  with a Google-Maps-style **layer switcher** (floating button, bottom-right) between three Mapbox
+  styles: satellite (`satellite-streets-v12` — the default layer, which already bakes road/place
+  labels onto the imagery, Mapbox's own "hybrid" style, so satellite view isn't just an unlabeled
+  photo), streets (`streets-v12` light / `dark-v11` dark, theme-matched and swapped live on
+  toggle), and topographic (`outdoors-v12`). A **"locate me" button** next to the layer switcher
+  re-centers the map on the device's live location on demand; the map also tries this once
+  automatically on mount (falls back to a default Israel view if geolocation is denied or
+  unavailable), dropping a turquoise "your location" dot either way. Demo expenses that have a
+  `location` (lat/lng) show as pins — tapping one opens a popup with the expense's
+  category/amount/note/date; pins are plain `mapboxgl.Marker` DOM overlays, so they survive layer
+  switches (`map.setStyle()`) without needing to be re-added. A permanent Google-Maps-style search
+  bar floats over the top of the map (not a toggled icon) and calls Nominatim (OSM's free
+  geocoding API, unrelated to Mapbox's own quota, debounced ~450ms) as you type, showing an
+  autocomplete dropdown of matching places; picking one pans/zooms the map there and drops a
+  marker. The top bar itself (profile + search icons) floats over the map here too — translucent
+  dark background, white icons — instead of reserving its own row like on every other tab
+  (`TopBar`'s `floating` prop), so the map truly fills the screen edge-to-edge. The native version
+  (`src/screens/MapScreen.tsx`,
   `react-native-webview` with a static world embed) is a placeholder for now — see "Notes for
   future work" for the `react-native-maps` + Google Maps upgrade planned once there's a real
   development build to test
@@ -204,12 +229,12 @@ module-level constant), so it re-renders correctly on theme toggle.
   notification text into a charge (→ expense, category guessed from merchant) or a credit (→
   reimbursement, same concept as trip mode). This is parsing logic only — see "Notes for future
   work" for what's still needed to actually read notifications on-device.
-- Map tab (web): a real, fullscreen Leaflet map with a layer switcher (satellite default, plus
-  streets and topographic — all free, keyless tile sources), a "locate me" button, geolocation on
-  load, a permanent Nominatim place-search bar (autocomplete, pans the map to the picked place with
-  a pin), and pins for any expense with a `location`. Demo data has four expenses with real
-  Tel-Aviv-area coordinates so pins show up out of the box. Native is a placeholder for now (see
-  "Notes for future work").
+- Map tab (web): a real, fullscreen Mapbox GL map (needs a free access token — see "Mapbox setup")
+  with a layer switcher (satellite default, plus streets and topographic), a "locate me" button,
+  geolocation on load, a permanent Nominatim place-search bar (autocomplete, pans the map to the
+  picked place with a pin), and pins for any expense with a `location`. Demo data has four
+  expenses with real Tel-Aviv-area coordinates so pins show up out of the box. Native is a
+  placeholder for now (see "Notes for future work").
 
 ## RTL approach
 
@@ -228,6 +253,7 @@ src/constants.ts                     category list, BRAND/DARK_COLORS/LIGHT_COLO
 src/theme.tsx                        ThemeProvider/useTheme (dark/light, persisted)
 src/firebaseConfig.ts                reads EXPO_PUBLIC_FIREBASE_* env vars
 src/firebase.ts / firebase.web.ts    platform-specific Firebase app/auth/db init
+src/mapboxConfig.ts                  reads EXPO_PUBLIC_MAPBOX_TOKEN, isMapboxConfigured flag
 src/utils.ts                         currency formatting, month-matching helpers
 src/currency.ts                      foreign-currency list, live-rate fetch (+ offline fallback), formatting
 src/hooks/useAuth.tsx                AuthProvider/useAuth (sign up/in/out, current user)
@@ -249,7 +275,7 @@ src/screens/TripsScreen.tsx          trip list + trip detail (auth-gated, or dem
 src/screens/SavingsGoalScreen.tsx    full savings-goal card + edit modal (overlay screen)
 src/screens/SettingsScreen.tsx       theme toggle, sign out, delete all data (overlay screen)
 src/screens/MapScreen.tsx / .web.tsx world map: static react-native-webview embed (native) vs
-                                      real leaflet map + Nominatim place search + expense pins (web)
+                                      real Mapbox GL map + Nominatim place search + expense pins (web)
 src/components/TopBar.tsx            profile icon (+ dropdown menu) and search icon, shown above the tab content
 src/components/BottomTabBar.tsx      fixed 3-tab bottom bar (תובנות / בית / מפה)
 src/components/BudgetMeter.tsx       gradient progress bar + set-budget button
@@ -289,7 +315,7 @@ src/components/EditTripTransactionModal.tsx edit an existing trip transaction's 
 - **Map tab, native (Android).** `MapScreen.tsx` is currently just a static world embed via
   `react-native-webview` — the plan is to switch to `react-native-maps` with the Google Maps
   provider for a real interactive native map (pinch-zoom, native place search, etc.), matching what
-  `MapScreen.web.tsx` already does with Leaflet. `react-native-maps` needs a Google Maps API key and
+  `MapScreen.web.tsx` already does with Mapbox GL. `react-native-maps` needs a Google Maps API key and
   (like the bank-notification listener) isn't in Expo Go's precompiled module set, so this also
   waits on an EAS development build to actually test on a device.
 - **Bank-notification auto-detection, native wiring (Android only).** The text-parsing basis
