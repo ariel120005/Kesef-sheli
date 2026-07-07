@@ -1,30 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
-import mapboxgl from 'mapbox-gl';
+import maplibregl from 'maplibre-gl';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { isFirebaseConfigured } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useDemoBudgetData } from '../hooks/useDemoBudgetData';
 import { useExpenses } from '../hooks/useExpenses';
-import { isMapboxConfigured, MAPBOX_TOKEN } from '../mapboxConfig';
+import { isMapTilerConfigured, MAPTILER_KEY } from '../maptilerConfig';
 import { ThemeColors, useTheme } from '../theme';
 import { formatCurrency, formatDate } from '../utils';
 
-// Web build of the map tab: a real, fullscreen interactive Mapbox GL map (vector tiles, the same
-// rendering engine behind mapbox.com — noticeably higher production quality than raster
-// OSM/Esri/CARTO tiles) with a Google-Maps-style layer switcher, instead of react-native-webview,
-// since that package has no web implementation. Also wires up Nominatim (OSM's free geocoding
-// service, unrelated to Mapbox's own quota) for a place search bar, requests device geolocation to
-// center on the user by default (with a "locate me" button to re-center on demand), and drops a
-// pin for every expense that has a location. The native version (src/screens/MapScreen.tsx) stays
-// a simple embed for now — react-native-maps + Google Maps is the planned upgrade there once
-// we're building a real development client (see CLAUDE.md).
+// Web build of the map tab: a real, fullscreen interactive MapLibre GL map (vector tiles, styled
+// by MapTiler — noticeably higher production quality than raster OSM/Esri/CARTO tiles) with a
+// Google-Maps-style layer switcher, instead of react-native-webview, since that package has no web
+// implementation. Also wires up Nominatim (OSM's free geocoding service, unrelated to MapTiler's
+// own quota) for a place search bar, requests device geolocation to center on the user by default
+// (with a "locate me" button to re-center on demand), and drops a pin for every expense that has a
+// location. The native version (src/screens/MapScreen.tsx) stays a simple embed for now —
+// react-native-maps + Google Maps is the planned upgrade there once we're building a real
+// development client (see CLAUDE.md).
 
-if (isMapboxConfigured) {
-  mapboxgl.accessToken = MAPBOX_TOKEN;
-}
-
-const MAPBOX_CSS_URL = 'https://api.mapbox.com/mapbox-gl-js/v3.25.0/mapbox-gl.css';
+const MAPLIBRE_CSS_URL = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css';
 const DEFAULT_CENTER: [number, number] = [35.2137, 31.7683]; // [lng, lat] — Israel
 const DEFAULT_ZOOM = 8;
 const GEOLOCATION_ZOOM = 15;
@@ -37,12 +33,13 @@ const LAYER_OPTIONS: { key: LayerType; label: string; icon: keyof typeof Ionicon
   { key: 'topo', label: 'טופוגרפי', icon: 'trail-sign-outline' },
 ];
 
-// satellite-streets already bakes road/place labels onto the imagery (Mapbox's own "hybrid"
-// style), so unlike the old Esri setup no separate label overlay is needed.
+// MapTiler's "hybrid" style already bakes road/place labels onto the satellite imagery, so unlike
+// the old Esri setup no separate label overlay is needed.
 function styleUrlFor(layer: LayerType, mode: 'dark' | 'light') {
-  if (layer === 'satellite') return 'mapbox://styles/mapbox/satellite-streets-v12';
-  if (layer === 'topo') return 'mapbox://styles/mapbox/outdoors-v12';
-  return mode === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/streets-v12';
+  if (layer === 'satellite') return `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
+  if (layer === 'topo') return `https://api.maptiler.com/maps/topo-v2/style.json?key=${MAPTILER_KEY}`;
+  const styleId = mode === 'dark' ? 'streets-v2-dark' : 'streets-v2';
+  return `https://api.maptiler.com/maps/${styleId}/style.json?key=${MAPTILER_KEY}`;
 }
 
 function createDotElement(color: string) {
@@ -72,10 +69,10 @@ export function MapScreen() {
   const expenses = isFirebaseConfigured ? firestoreExpenses.expenses : demo.expenses;
 
   const mapContainerRef = useRef<View>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const expenseMarkersRef = useRef<mapboxgl.Marker[]>([]);
-  const searchMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const locationMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const expenseMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const searchMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const locationMarkerRef = useRef<maplibregl.Marker | null>(null);
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NominatimResult[]>([]);
@@ -84,13 +81,13 @@ export function MapScreen() {
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
   const [locating, setLocating] = useState(false);
 
-  // Load Mapbox GL's stylesheet once (matches the installed mapbox-gl package version).
+  // Load MapLibre GL's stylesheet once (matches the installed maplibre-gl package version).
   useEffect(() => {
-    if (document.getElementById('mapbox-gl-css')) return;
+    if (document.getElementById('maplibre-gl-css')) return;
     const link = document.createElement('link');
-    link.id = 'mapbox-gl-css';
+    link.id = 'maplibre-gl-css';
     link.rel = 'stylesheet';
-    link.href = MAPBOX_CSS_URL;
+    link.href = MAPLIBRE_CSS_URL;
     document.head.appendChild(link);
   }, []);
 
@@ -108,9 +105,9 @@ export function MapScreen() {
         const { latitude, longitude } = position.coords;
         map.flyTo({ center: [longitude, latitude], zoom: GEOLOCATION_ZOOM });
         locationMarkerRef.current?.remove();
-        locationMarkerRef.current = new mapboxgl.Marker({ element: createDotElement(colors.turquoise) })
+        locationMarkerRef.current = new maplibregl.Marker({ element: createDotElement(colors.turquoise) })
           .setLngLat([longitude, latitude])
-          .setPopup(new mapboxgl.Popup({ closeButton: false }).setText('המיקום שלך'))
+          .setPopup(new maplibregl.Popup({ closeButton: false }).setText('המיקום שלך'))
           .addTo(map);
         setLocating(false);
       },
@@ -125,18 +122,17 @@ export function MapScreen() {
   // Initialize the map once, on the real DOM node behind the View (react-native-web forwards
   // View refs to the underlying <div>), then try to center on the device's real location.
   useEffect(() => {
-    if (!isMapboxConfigured) return;
+    if (!isMapTilerConfigured) return;
     const container = mapContainerRef.current as unknown as HTMLElement | null;
     if (!container || mapRef.current) return;
 
-    const map = new mapboxgl.Map({
+    const map = new maplibregl.Map({
       container,
       style: styleUrlFor('satellite', mode),
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
-      attributionControl: true,
     });
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-left');
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-left');
     mapRef.current = map;
     locateMe();
 
@@ -172,9 +168,9 @@ export function MapScreen() {
           ${expense.note ? `<br/>${expense.note}` : ''}
           <br/><span style="opacity:0.65">${formatDate(expense.date)}</span>
         `;
-        return new mapboxgl.Marker()
+        return new maplibregl.Marker()
           .setLngLat([expense.location!.lng, expense.location!.lat])
-          .setPopup(new mapboxgl.Popup().setHTML(popupHtml))
+          .setPopup(new maplibregl.Popup().setHTML(popupHtml))
           .addTo(map);
       });
   }, [expenses]);
@@ -210,9 +206,9 @@ export function MapScreen() {
     const lon = parseFloat(result.lon);
     map.flyTo({ center: [lon, lat], zoom: 15 });
     searchMarkerRef.current?.remove();
-    searchMarkerRef.current = new mapboxgl.Marker()
+    searchMarkerRef.current = new maplibregl.Marker()
       .setLngLat([lon, lat])
-      .setPopup(new mapboxgl.Popup().setText(result.display_name))
+      .setPopup(new maplibregl.Popup().setText(result.display_name))
       .addTo(map)
       .togglePopup();
     setResults([]);
@@ -226,12 +222,12 @@ export function MapScreen() {
     searchMarkerRef.current = null;
   };
 
-  if (!isMapboxConfigured) {
+  if (!isMapTilerConfigured) {
     return (
       <View style={[styles.container, styles.messageContainer]}>
         <Ionicons name="map-outline" size={44} color={colors.subtext} />
-        <Text style={styles.messageTitle}>Mapbox לא מוגדר</Text>
-        <Text style={styles.messageSubtitle}>הוסיפו EXPO_PUBLIC_MAPBOX_TOKEN לקובץ .env</Text>
+        <Text style={styles.messageTitle}>MapTiler לא מוגדר</Text>
+        <Text style={styles.messageSubtitle}>הוסיפו EXPO_PUBLIC_MAPTILER_KEY לקובץ .env</Text>
       </View>
     );
   }
