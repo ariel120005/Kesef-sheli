@@ -7,16 +7,10 @@ import { ThemeColors, useTheme } from '../theme';
 // WebView needs real native code, so this file is native-only; src/screens/MapScreen.web.tsx
 // covers the web/GitHub-Pages preview build with a real Leaflet map + place search instead.
 // This native version is a placeholder until we move to react-native-maps + Google Maps in a
-// future development build (see "Notes for future work" in CLAUDE.md) — searchOpen/onCloseSearch
-// aren't wired up here yet since there's no in-app search UI on native yet either.
+// future development build (see "Notes for future work" in CLAUDE.md).
 const MAP_URL = 'https://www.openstreetmap.org/export/embed.html?bbox=-180,-85,180,85&layer=mapnik';
 
-interface Props {
-  searchOpen: boolean;
-  onCloseSearch: () => void;
-}
-
-export function MapScreen(_props: Props) {
+export function MapScreen() {
   const { colors } = useTheme();
   const styles = getStyles(colors);
 

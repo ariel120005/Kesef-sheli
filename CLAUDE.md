@@ -17,8 +17,8 @@ same account's data.
 - No navigation library — screens are switched by plain state in `App.tsx`, with a custom
   bottom tab bar (see below).
 - Charts: `react-native-svg` for the category donut chart (works in Expo Go and on web via
-  react-native-web, no custom native code). Map tab: a real `leaflet` map (OpenStreetMap tiles,
-  free, no API key) plus Nominatim place search on web (`MapScreen.web.tsx`); `react-native-webview`
+  react-native-web, no custom native code). Map tab: a real `leaflet` map (CARTO's free basemap
+  tiles, no API key) plus Nominatim place search on web (`MapScreen.web.tsx`); `react-native-webview`
   with a static world embed on native for now (`MapScreen.tsx`) until a future development build
   moves native to `react-native-maps` + Google Maps — see "Notes for future work".
 
@@ -79,10 +79,9 @@ service cloud.firestore {
 Three bottom tabs, bar always visible, RTL order (rightmost → leftmost): תובנות, בית, מפה.
 `App.tsx` also renders a fixed top row (`src/components/TopBar.tsx`) above the tab content — a
 profile icon (rightmost) that opens a dropdown menu, and a search icon next to it. The search icon
-is a no-op placeholder on every tab except מפה, where it opens the Nominatim place-search box (see
-below) — `App.tsx` owns the `mapSearchOpen` boolean and passes `onSearchPress`/`searchOpen` between
-`TopBar` and `MapScreen` since they're siblings. Settings, the account/sign-in screen, Trips, and the
-Savings Goal screen are **not** tabs — they're `OverlayScreen`s (`src/types.ts`) reached only via
+is a no-op placeholder (מפה has its own always-visible search bar built into the map itself — see
+below). Settings, the account/sign-in screen, Trips, and the Savings Goal screen are **not** tabs
+— they're `OverlayScreen`s (`src/types.ts`) reached only via
 the profile dropdown menu (or, for Trips/Savings Goal, via a shortcut card on the Insights tab),
 each with its own back button that returns to whichever tab was active. `App.tsx` holds
 `activeTab` (the three bottom tabs) and `overlayScreen` (which of the four, or `null`) as
@@ -93,21 +92,26 @@ separate state — switching bottom tabs always clears any open overlay screen.
   shows a locked/empty state otherwise. When Firebase isn't configured at all (e.g. the public
   GitHub Pages preview), it instead shows a fully interactive **demo mode** (`src/demoData.ts`)
   with sample data, and a "מצב הדגמה" badge makes that clear.
-- **תובנות (Insights)** — the AI insights card, a donut chart of this month's spending by category
-  (`CategoryDonutChart.tsx`, `react-native-svg`) with a percentage legend, plus two small shortcut
-  cards ("יעד חיסכון" and "טיולים") that each open their respective `OverlayScreen` on tap. Same
-  demo-mode data as Home — see `src/hooks/useDemoBudgetData.tsx` below.
-- **מפה (Map)** — on web (`src/screens/MapScreen.web.tsx`), a real interactive `leaflet` map with
-  OpenStreetMap tiles, centered on Israel by default. Demo expenses that have a `location` (lat/lng)
-  show as pins — tapping one opens a popup with the expense's category/amount/note/date. The top
-  bar's search icon (see below) only does something on this tab: it opens a Google-Maps-style
-  search box that calls Nominatim (OSM's free geocoding API, debounced ~450ms) as you type,
-  showing an autocomplete dropdown of matching places; picking one pans/zooms the map there and
-  drops a marker. The native version (`src/screens/MapScreen.tsx`, `react-native-webview` with a
-  static world embed) is a placeholder for now — see "Notes for future work" for the
-  `react-native-maps` + Google Maps upgrade planned once there's a real development build to test
-  it on. Picked via Metro's `.web.tsx` platform extension the same way `firebase.ts` /
-  `firebase.web.ts` are.
+- **תובנות (Insights)** — top to bottom: a donut chart of this month's spending by category
+  (`CategoryDonutChart.tsx`, `react-native-svg`) with a percentage legend, then the AI insights
+  card (short rule-based Hebrew observations), then two small shortcut cards ("יעד חיסכון" and
+  "טיולים") that each open their respective `OverlayScreen` on tap. Same demo-mode data as Home —
+  see `src/hooks/useDemoBudgetData.tsx` below.
+- **מפה (Map)** — on web (`src/screens/MapScreen.web.tsx`), a real, fullscreen interactive
+  `leaflet` map using CARTO's free basemap tiles — Dark Matter in dark mode, Voyager in light mode
+  (swapped live on theme toggle via `tileLayer.setUrl`, no remount) — since plain OpenStreetMap's
+  default tile style reads as low-effort/dated next to Google Maps or Waze. On mount it requests
+  the browser's geolocation permission and recenters on the device's real location if granted
+  (falls back to a default Israel view otherwise), dropping a turquoise "your location" dot. Demo
+  expenses that have a `location` (lat/lng) show as pins — tapping one opens a popup with the
+  expense's category/amount/note/date. A permanent Google-Maps-style search bar floats over the
+  top of the map (not a toggled icon) and calls Nominatim (OSM's free geocoding API, debounced
+  ~450ms) as you type, showing an autocomplete dropdown of matching places; picking one pans/zooms
+  the map there and drops a marker. The native version (`src/screens/MapScreen.tsx`,
+  `react-native-webview` with a static world embed) is a placeholder for now — see "Notes for
+  future work" for the `react-native-maps` + Google Maps upgrade planned once there's a real
+  development build to test it on. Picked via Metro's `.web.tsx` platform extension the same way
+  `firebase.ts` / `firebase.web.ts` are.
 - **Profile dropdown menu** (opened from the top bar's profile icon) — rows: הגדרות, then
   התחברות/החשבון שלי (label flips once signed in), then טיולים and יעד חיסכון. The latter two are
   per-account features: in demo mode they're always shown (there's no sign-in concept there), but
@@ -192,9 +196,10 @@ module-level constant), so it re-renders correctly on theme toggle.
   notification text into a charge (→ expense, category guessed from merchant) or a credit (→
   reimbursement, same concept as trip mode). This is parsing logic only — see "Notes for future
   work" for what's still needed to actually read notifications on-device.
-- Map tab (web): a real Leaflet + OpenStreetMap map, Nominatim place search (autocomplete, pans
-  the map to the picked place with a pin), and pins for any expense with a `location`. Demo data
-  has four expenses with real Tel-Aviv-area coordinates so pins show up out of the box. Native is
+- Map tab (web): a real, fullscreen Leaflet map with CARTO tiles (dark/light theme-matched),
+  geolocation on load, a permanent Nominatim place-search bar (autocomplete, pans the map to the
+  picked place with a pin), and pins for any expense with a `location`. Demo data has four
+  expenses with real Tel-Aviv-area coordinates so pins show up out of the box. Native is
   a placeholder for now (see "Notes for future work").
 
 ## RTL approach

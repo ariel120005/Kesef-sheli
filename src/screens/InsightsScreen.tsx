@@ -80,9 +80,9 @@ export function InsightsScreen({ onOpenTrips, onOpenSavingsGoal }: Props) {
           )}
         </View>
 
-        <AIInsightsCard expenses={expenses} budget={budget} />
-
         <CategoryDonutChart expenses={expenses} />
+
+        <AIInsightsCard expenses={expenses} budget={budget} />
 
         <ShortcutCard
           icon="wallet-outline"
