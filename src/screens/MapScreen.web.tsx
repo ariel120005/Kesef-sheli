@@ -40,6 +40,13 @@ const LAYER_OPTIONS: { key: LayerType; label: string; icon: keyof typeof Ionicon
   { key: 'topo', label: 'טופוגרפי', icon: 'trail-sign-outline' },
 ];
 
+// Esri's reference overlays (transparent backgrounds, meant to sit on top of World_Imagery) — the
+// same "hybrid" trick Google Maps uses: satellite photography underneath, roads/place names on top.
+const SATELLITE_LABEL_OVERLAYS = [
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+];
+
 function tileConfigFor(layer: LayerType, mode: 'dark' | 'light') {
   if (layer === 'satellite') {
     return {
@@ -89,6 +96,7 @@ export function MapScreen() {
   const mapContainerRef = useRef<View>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const labelOverlaysRef = useRef<L.TileLayer[]>([]);
   const expenseMarkersRef = useRef<L.LayerGroup | null>(null);
   const searchMarkerRef = useRef<L.Marker | null>(null);
   const locationMarkerRef = useRef<L.CircleMarker | null>(null);
@@ -112,7 +120,9 @@ export function MapScreen() {
   }, []);
 
   // Swaps the active tile layer with a brief cross-fade instead of a hard cut, so switching
-  // between very different-looking layers (e.g. streets → satellite) feels smooth.
+  // between very different-looking layers (e.g. streets → satellite) feels smooth. Satellite gets
+  // Esri's transparent roads/places reference tiles stacked on top — a plain satellite photo has
+  // no street or place names on it otherwise, unlike Google Maps' "hybrid" view.
   const applyLayer = (layer: LayerType) => {
     const map = mapRef.current;
     if (!map) return;
@@ -126,9 +136,15 @@ export function MapScreen() {
     });
     newTileLayer.addTo(map);
     const previousLayer = tileLayerRef.current;
+    const previousOverlays = labelOverlaysRef.current;
     newTileLayer.once('load', () => {
       newTileLayer.setOpacity(1);
       if (previousLayer) map.removeLayer(previousLayer);
+      previousOverlays.forEach((overlay) => map.removeLayer(overlay));
+      labelOverlaysRef.current =
+        layer === 'satellite'
+          ? SATELLITE_LABEL_OVERLAYS.map((url) => L.tileLayer(url, { maxZoom: 19 }).addTo(map))
+          : [];
     });
     tileLayerRef.current = newTileLayer;
     setActiveLayer(layer);
@@ -182,6 +198,7 @@ export function MapScreen() {
       map.remove();
       mapRef.current = null;
       tileLayerRef.current = null;
+      labelOverlaysRef.current = [];
       expenseMarkersRef.current = null;
       locationMarkerRef.current = null;
     };
@@ -352,7 +369,7 @@ function getStyles(colors: ThemeColors) {
     },
     searchWrap: {
       position: 'absolute',
-      top: 16,
+      top: 64,
       left: 16,
       right: 16,
       zIndex: 1000,

@@ -9,13 +9,17 @@ import { OverlayScreen } from '../types';
 
 interface Props {
   onNavigate: (screen: OverlayScreen) => void;
+  // The Map tab is fullscreen edge-to-edge, so its own top bar floats over the map (translucent,
+  // white icons) instead of reserving its own row like on every other tab.
+  floating?: boolean;
 }
 
-export function TopBar({ onNavigate }: Props) {
+export function TopBar({ onNavigate, floating = false }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const iconColor = floating ? '#FFFFFF' : colors.text;
 
   // Trips/savings-goal are per-account features — in real (non-demo) mode they only make sense
   // in the menu once actually signed in; in demo mode there's no sign-in concept at all, so they
@@ -28,13 +32,13 @@ export function TopBar({ onNavigate }: Props) {
   };
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.row}>
+    <View style={[styles.wrapper, floating && styles.wrapperFloating]}>
+      <View style={[styles.row, floating && styles.rowFloating]}>
         <Pressable onPress={() => setMenuOpen((open) => !open)} style={styles.iconButton} hitSlop={8}>
-          <Ionicons name="person-circle-outline" size={28} color={colors.text} />
+          <Ionicons name="person-circle-outline" size={28} color={iconColor} />
         </Pressable>
         <Pressable onPress={() => {}} style={styles.iconButton} hitSlop={8}>
-          <Ionicons name="search-outline" size={22} color={colors.text} />
+          <Ionicons name="search-outline" size={22} color={iconColor} />
         </Pressable>
       </View>
 
@@ -71,6 +75,13 @@ function getStyles(colors: ThemeColors) {
     wrapper: {
       zIndex: 10,
     },
+    wrapperFloating: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 1000,
+    },
     row: {
       flexDirection: 'row-reverse',
       alignItems: 'center',
@@ -78,6 +89,9 @@ function getStyles(colors: ThemeColors) {
       paddingHorizontal: 22,
       paddingTop: 10,
       paddingBottom: 6,
+    },
+    rowFloating: {
+      backgroundColor: 'rgba(0,0,0,0.35)',
     },
     iconButton: {
       padding: 6,

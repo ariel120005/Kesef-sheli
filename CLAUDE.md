@@ -99,20 +99,25 @@ separate state — switching bottom tabs always clears any open overlay screen.
   see `src/hooks/useDemoBudgetData.tsx` below.
 - **מפה (Map)** — on web (`src/screens/MapScreen.web.tsx`), a real, fullscreen interactive
   `leaflet` map with a Google-Maps-style **layer switcher** (floating button, bottom-right) between
-  three free, keyless tile sources: satellite (Esri World Imagery — the default layer), streets
-  (CARTO Voyager/Dark Matter, theme-matched and swapped live on toggle), and topographic
-  (OpenTopoMap). Switching layers cross-fades the new tiles in before removing the old layer
-  (waits for the new layer's `load` event), instead of a hard cut. A **"locate me" button** next to
-  the layer switcher re-centers the map on the device's live location on demand; the map also tries
-  this once automatically on mount (falls back to a default Israel view if geolocation is denied or
-  unavailable), dropping a turquoise "your location" dot either way. Demo expenses that have a
-  `location` (lat/lng) show as pins — tapping one opens a popup with the expense's
-  category/amount/note/date. A permanent Google-Maps-style search bar floats over the top of the
-  map (not a toggled icon) and calls Nominatim (OSM's free geocoding API, debounced ~450ms) as you
-  type, showing an autocomplete dropdown of matching places; picking one pans/zooms the map there
-  and drops a marker. The native version (`src/screens/MapScreen.tsx`, `react-native-webview` with
-  a static world embed) is a placeholder for now — see "Notes for future work" for the
-  `react-native-maps` + Google Maps upgrade planned once there's a real development build to test
+  three free, keyless tile sources: satellite (Esri World Imagery — the default layer, with Esri's
+  transparent roads/place-name reference tiles stacked on top, the same "hybrid" trick Google Maps
+  uses so satellite view isn't just an unlabeled photo), streets (CARTO Voyager/Dark Matter,
+  theme-matched and swapped live on toggle), and topographic (OpenTopoMap). Switching layers
+  cross-fades the new tiles in before removing the old layer (waits for the new layer's `load`
+  event), instead of a hard cut. A **"locate me" button** next to the layer switcher re-centers the
+  map on the device's live location on demand; the map also tries this once automatically on mount
+  (falls back to a default Israel view if geolocation is denied or unavailable), dropping a
+  turquoise "your location" dot either way. Demo expenses that have a `location` (lat/lng) show as
+  pins — tapping one opens a popup with the expense's category/amount/note/date. A permanent
+  Google-Maps-style search bar floats over the top of the map (not a toggled icon) and calls
+  Nominatim (OSM's free geocoding API, debounced ~450ms) as you type, showing an autocomplete
+  dropdown of matching places; picking one pans/zooms the map there and drops a marker. The top bar
+  itself (profile + search icons) floats over the map here too — translucent dark background,
+  white icons — instead of reserving its own row like on every other tab (`TopBar`'s `floating`
+  prop), so the map truly fills the screen edge-to-edge. The native version (`src/screens/MapScreen.tsx`,
+  `react-native-webview` with a static world embed) is a placeholder for now — see "Notes for
+  future work" for the `react-native-maps` + Google Maps upgrade planned once there's a real
+  development build to test
   it on. Picked via Metro's `.web.tsx` platform extension the same way `firebase.ts` /
   `firebase.web.ts` are.
 - **Profile dropdown menu** (opened from the top bar's profile icon) — rows: הגדרות, then

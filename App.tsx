@@ -40,7 +40,9 @@ function AppContent() {
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar barStyle={colors.statusBarStyle} />
 
-        {overlayScreen === null && <TopBar onNavigate={setOverlayScreen} />}
+        {overlayScreen === null && (
+          <TopBar onNavigate={setOverlayScreen} floating={activeTab === 'map'} />
+        )}
 
         {overlayScreen === null && activeTab === 'home' && <HomeScreen />}
         {overlayScreen === null && activeTab === 'insights' && (
