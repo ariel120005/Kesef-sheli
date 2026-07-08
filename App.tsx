@@ -9,6 +9,7 @@ import { CategoriesScreen } from './src/screens/CategoriesScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { InsightsScreen } from './src/screens/InsightsScreen';
 import { MapScreen } from './src/screens/MapScreen';
+import { ParseTestScreen } from './src/screens/ParseTestScreen';
 import { ProfileMenuScreen } from './src/screens/ProfileMenuScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SavingsGoalScreen } from './src/screens/SavingsGoalScreen';
@@ -67,12 +68,17 @@ function AppContent() {
           <ProfileMenuScreen onBack={popOverlay} onNavigate={pushOverlay} />
         )}
         {overlayScreen === 'settings' && (
-          <SettingsScreen onBack={popOverlay} onOpenCategories={() => pushOverlay('categories')} />
+          <SettingsScreen
+            onBack={popOverlay}
+            onOpenCategories={() => pushOverlay('categories')}
+            onOpenParseTest={() => pushOverlay('parseTest')}
+          />
         )}
         {overlayScreen === 'account' && <ProfileScreen onBack={popOverlay} />}
         {overlayScreen === 'trips' && <TripsScreen onBack={popOverlay} />}
         {overlayScreen === 'savingsGoal' && <SavingsGoalScreen onBack={popOverlay} />}
         {overlayScreen === 'categories' && <CategoriesScreen onBack={popOverlay} />}
+        {overlayScreen === 'parseTest' && <ParseTestScreen onBack={popOverlay} />}
       </SafeAreaView>
 
       <SafeAreaView style={styles.tabBarSafeArea} edges={['bottom', 'left', 'right']}>

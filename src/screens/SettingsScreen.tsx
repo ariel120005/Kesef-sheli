@@ -17,9 +17,10 @@ import { ThemeColors, useTheme } from '../theme';
 interface Props {
   onBack: () => void;
   onOpenCategories: () => void;
+  onOpenParseTest: () => void;
 }
 
-export function SettingsScreen({ onBack, onOpenCategories }: Props) {
+export function SettingsScreen({ onBack, onOpenCategories, onOpenParseTest }: Props) {
   const { colors, mode, toggleTheme } = useTheme();
   const styles = getStyles(colors);
   const { user, signOut } = useAuth();
@@ -144,6 +145,14 @@ export function SettingsScreen({ onBack, onOpenCategories }: Props) {
             <View style={styles.rowLabel}>
               <Ionicons name="pricetags-outline" size={20} color={colors.text} />
               <Text style={styles.rowText}>ניהול קטגוריות</Text>
+            </View>
+          </Pressable>
+
+          <Pressable style={[styles.card, styles.actionCard, SHADOW]} onPress={onOpenParseTest}>
+            <Ionicons name="chevron-back" size={18} color={colors.subtext} />
+            <View style={styles.rowLabel}>
+              <Ionicons name="flask-outline" size={20} color={colors.text} />
+              <Text style={styles.rowText}>בדיקת פענוח התראות (פיתוח)</Text>
             </View>
           </Pressable>
 

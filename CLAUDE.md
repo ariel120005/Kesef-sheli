@@ -285,8 +285,18 @@ module-level constant), so it re-renders correctly on theme toggle.
 - Bank-notification auto-detection basis: `src/bankNotificationParser.ts` has pure, dependency-free
   functions (`parseBankNotification`, `guessCategoryFromMerchant`) that parse Hebrew bank-app
   notification text into a charge (→ expense, category guessed from merchant) or a credit (→
-  reimbursement, same concept as trip mode). This is parsing logic only — see "Notes for future
-  work" for what's still needed to actually read notifications on-device.
+  reimbursement, same concept as trip mode). `guessCategoryFromMerchant` matches merchant-name
+  keywords against a fixed default-category→keywords table, picking the *longest* matching
+  keyword across all buckets (not the first bucket in list order) so a more specific compound
+  name like "סופר פארם" isn't shadowed by a shorter generic keyword like "סופר", then maps that
+  guess onto whichever of the account's actual (possibly renamed/custom) categories has that
+  name. The exact wording Israeli bank/card apps use isn't documented publicly, so the regex
+  patterns are a best-effort guess, not verified against a real device — **בדיקת פענוח** in
+  Settings (`src/screens/ParseTestScreen.tsx`, a temporary dev-only screen) lets you paste real
+  notification text and see exactly what gets extracted, to calibrate the patterns against your
+  own bank's real format before there's any real notification-reading permission wired up. This
+  is parsing logic only — see "Notes for future work" for what's still needed to actually read
+  notifications on-device.
 - Map tab (web): a real, fullscreen MapLibre GL map styled by MapTiler (needs a free API key —
   see "MapTiler setup") with a layer switcher (satellite default, plus streets and topographic), a "locate me" button,
   geolocation on load, a permanent Nominatim place-search bar (autocomplete, pans the map to the
@@ -337,8 +347,11 @@ src/screens/ProfileScreen.tsx        AuthScreen when signed out, account card wh
 src/screens/TripsScreen.tsx          trip list + trip detail (auth-gated, or demo mode; overlay screen)
 src/screens/SavingsGoalScreen.tsx    full savings-goal card + edit modal (overlay screen)
 src/screens/SettingsScreen.tsx       theme toggle, default currency, month-start day, categories nav, CSV export,
-                                      reset data, sign out, delete account (overlay screen)
+                                      reset data, bank-notification parse-test nav, sign out, delete account
+                                      (overlay screen)
 src/screens/CategoriesScreen.tsx     category list (color/name/edit/delete) + add row (overlay screen)
+src/screens/ParseTestScreen.tsx      dev-only screen: paste bank notification text, see the parsed
+                                      result (reached via Settings; overlay screen)
 src/screens/MapScreen.tsx / .web.tsx world map: static react-native-webview embed (native) vs
                                       real MapLibre GL map + Nominatim place search + expense pins (web)
 src/components/TopBar.tsx            profile icon (opens the profile menu screen) + search icon (Map tab only)
