@@ -18,9 +18,15 @@ interface Props {
   onBack: () => void;
   onOpenCategories: () => void;
   onOpenParseTest: () => void;
+  onOpenNotificationSources: () => void;
 }
 
-export function SettingsScreen({ onBack, onOpenCategories, onOpenParseTest }: Props) {
+export function SettingsScreen({
+  onBack,
+  onOpenCategories,
+  onOpenParseTest,
+  onOpenNotificationSources,
+}: Props) {
   const { colors, mode, toggleTheme } = useTheme();
   const styles = getStyles(colors);
   const { user, signOut } = useAuth();
@@ -153,6 +159,14 @@ export function SettingsScreen({ onBack, onOpenCategories, onOpenParseTest }: Pr
             <View style={styles.rowLabel}>
               <Ionicons name="flask-outline" size={20} color={colors.text} />
               <Text style={styles.rowText}>בדיקת פענוח התראות (פיתוח)</Text>
+            </View>
+          </Pressable>
+
+          <Pressable style={[styles.card, styles.actionCard, SHADOW]} onPress={onOpenNotificationSources}>
+            <Ionicons name="chevron-back" size={18} color={colors.subtext} />
+            <View style={styles.rowLabel}>
+              <Ionicons name="notifications-outline" size={20} color={colors.text} />
+              <Text style={styles.rowText}>אילו אפליקציות לעקוב אחריהן</Text>
             </View>
           </Pressable>
 

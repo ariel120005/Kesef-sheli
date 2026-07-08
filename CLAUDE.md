@@ -67,8 +67,11 @@ and the UI shows a "Firebase לא מוגדר" message instead of crashing.
 - `users/{uid}` — document with `budget` (monthly budget), `savingsGoal` (monthly savings
   target), `defaultCurrency` (default selection for the currency picker — `'ILS'` or a
   `Currency` code), `monthStartDay` (1–28, which day of the month the budget period resets on —
-  defaults to 1, i.e. the plain calendar month), and `categoriesInitialized` (internal flag set
-  once the default category set has been seeded — see `categories` subcollection below) fields.
+  defaults to 1, i.e. the plain calendar month), `categoriesInitialized` (internal flag set
+  once the default category set has been seeded — see `categories` subcollection below),
+  `notificationSources` (array of `NotificationSource` — see "Bank-notification auto-detection"
+  below), and `notificationSourcesInitialized` (same lazy-seeding pattern, for the one Bit
+  preset) fields.
 - `users/{uid}/expenses/{autoId}` — one document per expense (`amount`, `category`, `note`,
   `date`, optional `recurring`, optional `autoDetected`, optional `originalAmount`/
   `originalCurrency` when entered in a foreign currency — see "Foreign-currency entry" above).
@@ -181,7 +184,9 @@ stack (`closeAllOverlays`).
     builds the CSV — date/amount/category/note columns, UTF-8 BOM prefix so Hebrew renders
     correctly in Excel — then downloads it directly via a Blob on web, or writes it to a temp file
     and opens the native share sheet via `expo-file-system`/`expo-sharing` on native, both
-    precompiled into Expo Go), and איפוס נתונים
+    precompiled into Expo Go), בדיקת פענוח התראות (פיתוח) (opens the bank-notification
+    parse-test dev screen, see below), אילו אפליקציות לעקוב אחריהן (opens the notification-source
+    allowlist screen, see below), and איפוס נתונים
     (deletes all expenses/history only, not the budget/categories/settings — double-confirmed:
     a first dialog, then a second with the literal message "האם אתה בטוח? פעולה זו בלתי הפיכה", so
     it can't be tapped by accident). Only shown when actually signed in (real Firebase mode):
@@ -205,10 +210,22 @@ stack (`closeAllOverlays`).
     category checks whether any expense currently uses its name; if so the delete is blocked with
     an inline banner instead of a confirm dialog (deleting an in-use category would silently orphan
     those expenses' category field), otherwise it goes through the normal `ConfirmDialog`.
+  - **בדיקת פענוח (parse-test)** — `src/screens/ParseTestScreen.tsx`, a temporary dev-only screen
+    reached via Settings, for calibrating `src/bankNotificationParser.ts` against real
+    notification text before there's any native notification-reading permission at all (see "MVP
+    scope" and "Notes for future work"). Also has a "package name" field simulating which app a
+    notification came from, checked against `isNotificationSourceApproved` before parsing is even
+    attempted — picking an unapproved source blocks the check entirely, proving the same gate the
+    real native listener will use.
+  - **אילו אפליקציות לעקוב אחריהן (notification sources)** — `src/screens/
+    NotificationSourcesScreen.tsx`, the explicit per-app allowlist for the (future) notification
+    listener (see "MVP scope" and "Notes for future work"). Every source — the one Bit preset, or
+    any manually-added app — defaults to disabled; the screen's own text explains why (Android's
+    listener permission is all-or-nothing, this allowlist is what narrows it down in practice).
 
 Home, Insights, Settings, Categories, and the Savings Goal screen all need the same budget/
-expenses/savings-goal/categories/default-currency/month-start-day numbers to stay in sync in demo
-mode now that they're separate screens, so that demo state lives in one shared
+expenses/savings-goal/categories/default-currency/month-start-day/notification-sources numbers to
+stay in sync in demo mode now that they're separate screens, so that demo state lives in one shared
 `DemoBudgetDataProvider` (`src/hooks/useDemoBudgetData.tsx`, wrapping the whole app in `App.tsx`)
 instead of being duplicated per screen — real Firebase mode doesn't need this since every screen's
 Firestore hook (`useCategories`, `useAppSettings`, etc.) already reads/writes the same underlying
@@ -285,18 +302,40 @@ module-level constant), so it re-renders correctly on theme toggle.
 - Bank-notification auto-detection basis: `src/bankNotificationParser.ts` has pure, dependency-free
   functions (`parseBankNotification`, `guessCategoryFromMerchant`) that parse Hebrew bank-app
   notification text into a charge (→ expense, category guessed from merchant) or a credit (→
-  reimbursement, same concept as trip mode). `guessCategoryFromMerchant` matches merchant-name
-  keywords against a fixed default-category→keywords table, picking the *longest* matching
-  keyword across all buckets (not the first bucket in list order) so a more specific compound
-  name like "סופר פארם" isn't shadowed by a shorter generic keyword like "סופר", then maps that
-  guess onto whichever of the account's actual (possibly renamed/custom) categories has that
-  name. The exact wording Israeli bank/card apps use isn't documented publicly, so the regex
-  patterns are a best-effort guess, not verified against a real device — **בדיקת פענוח** in
-  Settings (`src/screens/ParseTestScreen.tsx`, a temporary dev-only screen) lets you paste real
-  notification text and see exactly what gets extracted, to calibrate the patterns against your
-  own bank's real format before there's any real notification-reading permission wired up. This
-  is parsing logic only — see "Notes for future work" for what's still needed to actually read
-  notifications on-device.
+  reimbursement, same concept as trip mode; Bit's "מחכים לך" pending-transfer wording counts as an
+  immediate credit too, not just an already-confirmed "קיבלת"/"התקבל"). Notifications that glue
+  Hebrew and Latin/digit text together with no space at all (seen on a real device — e.g. "בית
+  עסקKING MEAT... בסך155.0 שח") are handled by inserting a space at every Hebrew↔Latin/digit
+  script boundary before parsing. `guessCategoryFromMerchant` matches merchant-name keywords
+  (Hebrew and English — e.g. `meat`/`food`/`wolt`) against a fixed default-category→keywords
+  table, picking the *longest* matching keyword across all buckets (not the first bucket in list
+  order) so a more specific compound name like "סופר פארם" isn't shadowed by a shorter generic
+  keyword like "סופר", then maps that guess onto whichever of the account's actual (possibly
+  renamed/custom) categories has that name. The exact wording Israeli bank/card apps use isn't
+  documented publicly, so the patterns are a best-effort guess, tuned against real notification
+  text pasted into **בדיקת פענוח** in Settings (`src/screens/ParseTestScreen.tsx`, a temporary
+  dev-only screen) — paste real notification text and see exactly what gets extracted, to
+  calibrate further against your own bank's real format. This screen also simulates the
+  source-app allowlist check (see below): a "package name" field lets you pick one of your
+  approved sources or a deliberately-unapproved example, and checking blocks the parse entirely
+  (no text is even looked at) if that source isn't approved — the same `isNotificationSourceApproved`
+  gate the real native listener will eventually use. This is parsing logic only — see "Notes for
+  future work" for what's still needed to actually read notifications on-device.
+- Bank-notification source allowlist: Android's `NotificationListenerService` permission is
+  all-or-nothing at the OS level — once granted, the (future) native listener technically
+  receives every notification posted on the device. **אילו אפליקציות לעקוב אחריהן** in Settings
+  (`src/screens/NotificationSourcesScreen.tsx`) is the explicit, per-app allowlist that narrows
+  that down: every source (a preset like Bit, or a manually-added `packageName` + display label)
+  defaults to **disabled** — nothing is approved just because it's listed, the user must flip
+  each switch on deliberately. `src/notificationFilter.ts`'s `isNotificationSourceApproved`
+  (`packageName`, `enabledPackageNames[]` → `boolean`) is a single, trivial, side-effect-free
+  check meant to be the *first* thing the native listener's `onNotificationPosted` calls, before
+  any text extraction, storage, or logging — see "Notes for future work" for exactly where that
+  hook goes once the native module exists. Only Bit's package name (`com.familypay.bit`) is
+  preset, since a wrong guess at a bank app's package name would be a real access-control mistake
+  (the user might trust a toggle that doesn't correspond to their actual bank app); every other
+  app is added manually with its real package name (findable via the app's Play Store listing
+  URL, which ends in `?id=<package name>`).
 - Map tab (web): a real, fullscreen MapLibre GL map styled by MapTiler (needs a free API key —
   see "MapTiler setup") with a layer switcher (satellite default, plus streets and topographic), a "locate me" button,
   geolocation on load, a permanent Nominatim place-search bar (autocomplete, pans the map to the
@@ -338,6 +377,8 @@ src/hooks/useTripTransactions.ts     Firestore-backed transactions for one trip 
 src/insights.ts                      rule-based Hebrew insight generator (no LLM call), month-start-day aware
 src/recurring.ts                     finds which recurring expenses need this month's copy
 src/bankNotificationParser.ts        pure text parsing: bank notification → charge/credit, merchant → category
+src/notificationFilter.ts            isNotificationSourceApproved gate + the one Bit preset source
+src/hooks/useNotificationSources.ts  Firestore-backed approved-app allowlist (onSnapshot, toggle/add/remove, lazy seed)
 src/demoData.ts                      sample expenses/budget/goal/trips/categories for demo mode
 src/screens/HomeScreen.tsx           budget meter + add-expense form + category breakdown + expense list
 src/screens/InsightsScreen.tsx       AI insights card + category donut chart + savings-goal/trips shortcut cards
@@ -347,11 +388,13 @@ src/screens/ProfileScreen.tsx        AuthScreen when signed out, account card wh
 src/screens/TripsScreen.tsx          trip list + trip detail (auth-gated, or demo mode; overlay screen)
 src/screens/SavingsGoalScreen.tsx    full savings-goal card + edit modal (overlay screen)
 src/screens/SettingsScreen.tsx       theme toggle, default currency, month-start day, categories nav, CSV export,
-                                      reset data, bank-notification parse-test nav, sign out, delete account
-                                      (overlay screen)
+                                      reset data, bank-notification parse-test nav, notification-sources nav,
+                                      sign out, delete account (overlay screen)
 src/screens/CategoriesScreen.tsx     category list (color/name/edit/delete) + add row (overlay screen)
-src/screens/ParseTestScreen.tsx      dev-only screen: paste bank notification text, see the parsed
-                                      result (reached via Settings; overlay screen)
+src/screens/ParseTestScreen.tsx      dev-only screen: paste bank notification text + simulate a source package
+                                      name, see the parsed result or the source-filter block (overlay screen)
+src/screens/NotificationSourcesScreen.tsx  per-app allowlist for the (future) notification listener — presets +
+                                      manual add, everything off by default (overlay screen)
 src/screens/MapScreen.tsx / .web.tsx world map: static react-native-webview embed (native) vs
                                       real MapLibre GL map + Nominatim place search + expense pins (web)
 src/components/TopBar.tsx            profile icon (opens the profile menu screen) + search icon (Map tab only)
@@ -399,16 +442,27 @@ src/components/EditTripTransactionModal.tsx edit an existing trip transaction's 
   (like the bank-notification listener) isn't in Expo Go's precompiled module set, so this also
   waits on an EAS development build to actually test on a device.
 - **Bank-notification auto-detection, native wiring (Android only).** The text-parsing basis
-  (`src/bankNotificationParser.ts`) is done and unit-testable today, but reading real notifications
+  (`src/bankNotificationParser.ts`) and the source allowlist (`src/notificationFilter.ts`,
+  `src/screens/NotificationSourcesScreen.tsx`) are done and testable today (the `src/screens/
+  ParseTestScreen.tsx` dev screen simulates the whole pipeline), but reading real notifications
   requires native code this managed-workflow project doesn't have yet:
   1. `expo prebuild` (or an EAS config plugin) to generate the `android/` project, since a
      `NotificationListenerService` is native-only — Expo Go can't load it.
   2. A Kotlin/Java `NotificationListenerService` declared in `AndroidManifest.xml` with the
-     `BIND_NOTIFICATION_LISTENER_SERVICE` permission, filtering to the banking app's package name.
+     `BIND_NOTIFICATION_LISTENER_SERVICE` permission. Android grants this permission for *all*
+     notifications on the device — there's no OS-level way to scope it to specific apps — so
+     `onNotificationPosted(sbn)` must call the JS-side `isNotificationSourceApproved(sbn.packageName,
+     enabledPackageNames)` check (via the native module bridge in step 4) as the very first thing
+     it does, before reading `sbn.notification.extras` or doing anything else with the
+     notification, and return immediately if it's not approved. This is what makes the
+     transparency statement in `NotificationSourcesScreen.tsx` accurate rather than aspirational:
+     the filtering has to happen before any text ever leaves the OS notification object.
   3. The user must manually grant notification access in Android Settings → apps with notification
      access — this cannot be requested/auto-granted like a normal runtime permission.
-  4. A native module (e.g. via `NativeEventEmitter`) bridging each captured notification's text to
-     JS, which then calls `parseBankNotification` and `guessCategoryFromMerchant` and writes an
-     expense/reimbursement with `autoDetected: true`.
+  4. A native module (e.g. via `NativeEventEmitter`) bridging each captured notification's package
+     name + text to JS. The JS-side handler checks `isNotificationSourceApproved` again (defense in
+     depth, and to source the current `enabledPackageNames` from Firestore/demo state) before
+     calling `parseBankNotification` and `guessCategoryFromMerchant` and writing an expense/
+     reimbursement with `autoDetected: true`.
   5. Since Expo Go doesn't support custom native modules, building and testing this needs an
      EAS-built development client (`eas build --profile development`), not `npm start`.

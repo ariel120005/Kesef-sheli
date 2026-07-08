@@ -1,7 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { DEMO_BUDGET, DEMO_CATEGORIES, DEMO_EXPENSES, DEMO_SAVINGS_GOAL } from '../demoData';
+import { PRESET_NOTIFICATION_SOURCES } from '../notificationFilter';
 import { findMissingRecurringInstances } from '../recurring';
-import { Category, CategoryDef, Currency, Expense } from '../types';
+import { Category, CategoryDef, Currency, Expense, NotificationSource } from '../types';
+
+const DEMO_NOTIFICATION_SOURCES: NotificationSource[] = PRESET_NOTIFICATION_SOURCES.map((preset, index) => ({
+  id: `demo-preset-${index}`,
+  packageName: preset.packageName,
+  label: preset.label,
+  enabled: false,
+  isPreset: true,
+}));
 
 interface DemoBudgetData {
   expenses: Expense[];
@@ -10,6 +19,7 @@ interface DemoBudgetData {
   categories: CategoryDef[];
   defaultCurrency: Currency | 'ILS';
   monthStartDay: number;
+  notificationSources: NotificationSource[];
   addExpense: (
     amount: number,
     category: Category,
@@ -35,6 +45,9 @@ interface DemoBudgetData {
   deleteCategory: (id: string) => void;
   updateDefaultCurrency: (value: Currency | 'ILS') => void;
   updateMonthStartDay: (value: number) => void;
+  toggleNotificationSource: (id: string, enabled: boolean) => void;
+  addNotificationSource: (packageName: string, label: string) => void;
+  removeNotificationSource: (id: string) => void;
   resetAllData: () => void;
 }
 
@@ -50,6 +63,9 @@ export function DemoBudgetDataProvider({ children }: { children: React.ReactNode
   const [categories, setCategories] = useState<CategoryDef[]>(DEMO_CATEGORIES);
   const [defaultCurrency, setDefaultCurrency] = useState<Currency | 'ILS'>('ILS');
   const [monthStartDay, setMonthStartDay] = useState(1);
+  const [notificationSources, setNotificationSources] = useState<NotificationSource[]>(
+    DEMO_NOTIFICATION_SOURCES
+  );
 
   const addExpense = (
     amount: number,
@@ -106,6 +122,21 @@ export function DemoBudgetDataProvider({ children }: { children: React.ReactNode
     setCategories((prev) => prev.filter((c) => c.id !== id));
   };
 
+  const toggleNotificationSource = (id: string, enabled: boolean) => {
+    setNotificationSources((prev) => prev.map((s) => (s.id === id ? { ...s, enabled } : s)));
+  };
+
+  const addNotificationSource = (packageName: string, label: string) => {
+    setNotificationSources((prev) => [
+      ...prev,
+      { id: `demo-custom-${Date.now()}`, packageName, label, enabled: false, isPreset: false },
+    ]);
+  };
+
+  const removeNotificationSource = (id: string) => {
+    setNotificationSources((prev) => prev.filter((s) => s.id !== id));
+  };
+
   const resetAllData = () => {
     setExpenses([]);
   };
@@ -137,6 +168,7 @@ export function DemoBudgetDataProvider({ children }: { children: React.ReactNode
         categories,
         defaultCurrency,
         monthStartDay,
+        notificationSources,
         addExpense,
         updateExpense,
         deleteExpense,
@@ -147,6 +179,9 @@ export function DemoBudgetDataProvider({ children }: { children: React.ReactNode
         deleteCategory,
         updateDefaultCurrency: setDefaultCurrency,
         updateMonthStartDay: setMonthStartDay,
+        toggleNotificationSource,
+        addNotificationSource,
+        removeNotificationSource,
         resetAllData,
       }}
     >

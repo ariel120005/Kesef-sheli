@@ -36,7 +36,19 @@ export type OverlayScreen =
   | 'trips'
   | 'savingsGoal'
   | 'categories'
-  | 'parseTest';
+  | 'parseTest'
+  | 'notificationSources';
+
+// One app the (future) native notification listener is allowed to read — everything else must
+// be discarded unread. `enabled` defaults to false for every source, including presets: the user
+// must actively opt in per app, nothing is approved by default.
+export interface NotificationSource {
+  id: string;
+  packageName: string;
+  label: string;
+  enabled: boolean;
+  isPreset: boolean;
+}
 
 export interface Trip {
   id: string;
