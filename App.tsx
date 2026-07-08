@@ -29,49 +29,66 @@ function AppContent() {
   // A real stack (not just one "current" screen) so the in-app back arrows on each screen still
   // navigate one level at a time no matter how deep — e.g. profile menu → settings → categories
   // → back → settings → back → profile menu.
+  // A real stack (not just one "current" screen) so back navigates one level at a time no matter
+  // how deep — e.g. profile menu → settings → categories → back → settings → back → profile menu.
   const [overlayStack, setOverlayStack] = useState<OverlayScreen[]>([]);
   const overlayScreen = overlayStack[overlayStack.length - 1] ?? null;
-  const isAway = activeTab !== 'home' || overlayStack.length > 0;
-  const prevAwayRef = useRef(false);
-  const skipNextSyncRef = useRef(false);
 
-  // On web, the device back button (Android) / swipe-back gesture (iOS) should behave like
-  // standard bottom-nav-bar apps: from anywhere other than the home tab, back always returns
-  // straight to home — never to whatever screen was previously visited, no matter how many tabs
-  // or overlay screens deep the user has navigated — and only from home does back actually leave
-  // the site. That means the browser history only ever needs at most one extra entry beyond the
-  // initial "home" entry: pushed the first time the user leaves home, then updated in place
-  // (replaceState) for every further move between non-home screens, so a single "back" pop always
-  // lands back on that one home entry.
+  // The app's navigation forms a fixed tree, not a linear visit history: a non-home tab is a
+  // child of home, and each pushed overlay is a child of whatever was on screen when it was
+  // opened. "Depth" is this tree position collapsed to a single number — 0 at home, +1 for being
+  // on a non-home tab, +1 more per overlay stacked on top — so that moving between sibling tabs
+  // (which doesn't change depth) is naturally a no-op here, and only genuine parent→child moves
+  // change it. Mirrored 1:1 into browser history below so one back/forward step always moves
+  // exactly one level of this tree — never further, and never to an unrelated previously-visited
+  // screen — and back from home (depth 0) falls through to actually leaving the page.
+  const depth = (activeTab === 'home' ? 0 : 1) + overlayStack.length;
+  const depthRef = useRef(0);
+  // Set by the popstate handler right before it updates state, so the depth-sync effect below
+  // knows this particular depth change already matches where the browser just navigated to, and
+  // skips re-driving history for it (which would otherwise double-navigate).
+  const skipNextDepthSyncRef = useRef(false);
+  // Set by the depth-sync effect right before it calls history.go() for an in-app-triggered pop,
+  // so the popstate that call itself produces is recognized as an echo (state was already
+  // updated directly) rather than a second, unrelated back-navigation to also act on.
+  const ignoreNextPopstateRef = useRef(false);
+
   useEffect(() => {
     if (!isWeb || typeof window === 'undefined') return;
-    window.history.replaceState({ away: false }, '');
+    window.history.replaceState(null, '');
 
     const handlePopState = () => {
-      skipNextSyncRef.current = true;
-      setActiveTab('home');
-      setOverlayStack([]);
+      if (ignoreNextPopstateRef.current) {
+        ignoreNextPopstateRef.current = false;
+        return;
+      }
+      skipNextDepthSyncRef.current = true;
+      if (overlayStack.length > 0) {
+        setOverlayStack((stack) => stack.slice(0, -1));
+      } else if (activeTab !== 'home') {
+        setActiveTab('home');
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [activeTab, overlayStack]);
 
   useEffect(() => {
     if (!isWeb || typeof window === 'undefined') return;
-    if (skipNextSyncRef.current) {
-      skipNextSyncRef.current = false;
-      prevAwayRef.current = isAway;
+    if (skipNextDepthSyncRef.current) {
+      skipNextDepthSyncRef.current = false;
+      depthRef.current = depth;
       return;
     }
-    if (isAway && !prevAwayRef.current) {
-      window.history.pushState({ away: true }, '');
-    } else if (isAway && prevAwayRef.current) {
-      window.history.replaceState({ away: true }, '');
-    } else if (!isAway && prevAwayRef.current) {
-      window.history.back();
+    const delta = depth - depthRef.current;
+    if (delta > 0) {
+      for (let i = 0; i < delta; i++) window.history.pushState(null, '');
+    } else if (delta < 0) {
+      ignoreNextPopstateRef.current = true;
+      window.history.go(delta);
     }
-    prevAwayRef.current = isAway;
-  }, [isAway]);
+    depthRef.current = depth;
+  }, [depth]);
 
   if (initializing) {
     return (
@@ -86,6 +103,13 @@ function AppContent() {
 
   const pushOverlay = (screen: OverlayScreen) => setOverlayStack((stack) => [...stack, screen]);
   const popOverlay = () => setOverlayStack((stack) => stack.slice(0, -1));
+  // Used only when navigating away from the profile menu: the menu itself is a transient
+  // selector, not a real stop in the hierarchy, so choosing one of its rows swaps it out for the
+  // destination screen instead of stacking on top of it — the destination's parent is whatever
+  // was on screen before the profile menu opened (its own tab), matching "settings' parent is
+  // home because I opened it via the profile menu" rather than "...via profile menu, via home".
+  const replaceOverlay = (screen: OverlayScreen) =>
+    setOverlayStack((stack) => [...stack.slice(0, -1), screen]);
 
   const changeTab = (tab: TabKey) => {
     setActiveTab(tab);
@@ -114,7 +138,7 @@ function AppContent() {
         )}
         {overlayScreen === null && activeTab === 'map' && <MapScreen />}
         {overlayScreen === 'profileMenu' && (
-          <ProfileMenuScreen onBack={popOverlay} onNavigate={pushOverlay} />
+          <ProfileMenuScreen onBack={popOverlay} onNavigate={replaceOverlay} />
         )}
         {overlayScreen === 'settings' && (
           <SettingsScreen
