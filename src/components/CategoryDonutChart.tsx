@@ -1,13 +1,15 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
-import { CATEGORY_COLORS, SHADOW } from '../constants';
+import { FALLBACK_CATEGORY_COLOR, SHADOW } from '../constants';
 import { ThemeColors, useTheme } from '../theme';
 import { Expense } from '../types';
 import { formatCurrency, isSameMonth } from '../utils';
 
 interface Props {
   expenses: Expense[];
+  categoryColors: Record<string, string>;
+  monthStartDay?: number;
 }
 
 const SIZE = 176;
@@ -15,7 +17,7 @@ const STROKE_WIDTH = 26;
 const RADIUS = (SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-export function CategoryDonutChart({ expenses }: Props) {
+export function CategoryDonutChart({ expenses, categoryColors, monthStartDay = 1 }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
 
@@ -23,19 +25,19 @@ export function CategoryDonutChart({ expenses }: Props) {
     const totals = new Map<string, number>();
     let total = 0;
     for (const e of expenses) {
-      if (!isSameMonth(e.date)) continue;
+      if (!isSameMonth(e.date, new Date(), monthStartDay)) continue;
       totals.set(e.category, (totals.get(e.category) ?? 0) + e.amount);
       total += e.amount;
     }
     const rows = Array.from(totals.entries())
       .map(([category, amount]) => ({
-        category: category as keyof typeof CATEGORY_COLORS,
+        category,
         amount,
         percent: total > 0 ? (amount / total) * 100 : 0,
       }))
       .sort((a, b) => b.amount - a.amount);
     return { rows, monthTotal: total };
-  }, [expenses]);
+  }, [expenses, monthStartDay]);
 
   let cumulativePercent = 0;
 
@@ -68,7 +70,7 @@ export function CategoryDonutChart({ expenses }: Props) {
                       cx={SIZE / 2}
                       cy={SIZE / 2}
                       r={RADIUS}
-                      stroke={CATEGORY_COLORS[row.category]}
+                      stroke={categoryColors[row.category] ?? FALLBACK_CATEGORY_COLOR}
                       strokeWidth={STROKE_WIDTH}
                       strokeDasharray={`${segmentLength} ${CIRCUMFERENCE - segmentLength}`}
                       strokeDashoffset={-offset}
@@ -88,7 +90,12 @@ export function CategoryDonutChart({ expenses }: Props) {
           <View style={styles.legend}>
             {rows.map((row) => (
               <View key={row.category} style={styles.legendRow}>
-                <View style={[styles.legendDot, { backgroundColor: CATEGORY_COLORS[row.category] }]} />
+                <View
+                  style={[
+                    styles.legendDot,
+                    { backgroundColor: categoryColors[row.category] ?? FALLBACK_CATEGORY_COLOR },
+                  ]}
+                />
                 <Text style={styles.legendLabel}>{row.category}</Text>
                 <Text style={styles.legendPercent}>{row.percent.toFixed(0)}%</Text>
               </View>

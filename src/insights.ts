@@ -1,19 +1,19 @@
 import { Expense } from './types';
-import { formatCurrency } from './utils';
+import { formatCurrency, getBudgetPeriod } from './utils';
 
 interface MonthWindow {
-  year: number;
-  month: number;
+  start: Date;
+  end: Date;
 }
 
-function monthOffsetFromNow(offset: number, now: Date): MonthWindow {
-  const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-  return { year: d.getFullYear(), month: d.getMonth() };
+function monthOffsetFromNow(offset: number, monthStartDay: number, now: Date): MonthWindow {
+  const shifted = new Date(now.getFullYear(), now.getMonth() + offset, now.getDate());
+  return getBudgetPeriod(monthStartDay, shifted);
 }
 
 function isInMonth(dateStr: string, window: MonthWindow): boolean {
   const d = new Date(dateStr);
-  return d.getFullYear() === window.year && d.getMonth() === window.month;
+  return d >= window.start && d < window.end;
 }
 
 function sumByCategory(expenses: Expense[]): Map<string, number> {
@@ -35,12 +35,13 @@ function topEntry(totals: Map<string, number>): [string, number] | null {
 export function generateInsights(
   expenses: Expense[],
   budget: number | null,
+  monthStartDay: number = 1,
   now: Date = new Date()
 ): string[] {
   const insights: string[] = [];
 
-  const thisMonthWindow = monthOffsetFromNow(0, now);
-  const lastMonthWindow = monthOffsetFromNow(-1, now);
+  const thisMonthWindow = monthOffsetFromNow(0, monthStartDay, now);
+  const lastMonthWindow = monthOffsetFromNow(-1, monthStartDay, now);
   const thisMonthExpenses = expenses.filter((e) => isInMonth(e.date, thisMonthWindow));
   const lastMonthExpenses = expenses.filter((e) => isInMonth(e.date, lastMonthWindow));
 

@@ -5,8 +5,10 @@ import { AIInsightsCard } from '../components/AIInsightsCard';
 import { CategoryDonutChart } from '../components/CategoryDonutChart';
 import { SHADOW } from '../constants';
 import { isFirebaseConfigured } from '../firebase';
+import { useAppSettings } from '../hooks/useAppSettings';
 import { useAuth } from '../hooks/useAuth';
 import { useBudget } from '../hooks/useBudget';
+import { useCategories } from '../hooks/useCategories';
 import { useDemoBudgetData } from '../hooks/useDemoBudgetData';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSavingsGoal } from '../hooks/useSavingsGoal';
@@ -25,25 +27,36 @@ export function InsightsScreen({ onOpenTrips, onOpenSavingsGoal }: Props) {
   const firestoreExpenses = useExpenses(user?.uid ?? null);
   const firestoreBudget = useBudget(user?.uid ?? null);
   const firestoreSavingsGoal = useSavingsGoal(user?.uid ?? null);
+  const firestoreCategories = useCategories(user?.uid ?? null);
+  const firestoreSettings = useAppSettings(user?.uid ?? null);
   const demo = useDemoBudgetData();
 
-  const { expenses, budget, savingsGoal, loaded } = isFirebaseConfigured
+  const { expenses, budget, savingsGoal, categories, monthStartDay, loaded } = isFirebaseConfigured
     ? {
         expenses: firestoreExpenses.expenses,
         budget: firestoreBudget.budget,
         savingsGoal: firestoreSavingsGoal.savingsGoal,
+        categories: firestoreCategories.categories,
+        monthStartDay: firestoreSettings.monthStartDay,
         loaded: firestoreExpenses.loaded && firestoreBudget.loaded,
       }
     : {
         expenses: demo.expenses,
         budget: demo.budget,
         savingsGoal: demo.savingsGoal,
+        categories: demo.categories,
+        monthStartDay: demo.monthStartDay,
         loaded: true,
       };
 
+  const categoryColors = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.name, c.color])),
+    [categories]
+  );
+
   const monthlySpent = useMemo(
-    () => expenses.filter((e) => isSameMonth(e.date)).reduce((sum, e) => sum + e.amount, 0),
-    [expenses]
+    () => expenses.filter((e) => isSameMonth(e.date, new Date(), monthStartDay)).reduce((sum, e) => sum + e.amount, 0),
+    [expenses, monthStartDay]
   );
 
   if (isFirebaseConfigured && !user) {
@@ -80,9 +93,9 @@ export function InsightsScreen({ onOpenTrips, onOpenSavingsGoal }: Props) {
           )}
         </View>
 
-        <CategoryDonutChart expenses={expenses} />
+        <CategoryDonutChart expenses={expenses} categoryColors={categoryColors} monthStartDay={monthStartDay} />
 
-        <AIInsightsCard expenses={expenses} budget={budget} />
+        <AIInsightsCard expenses={expenses} budget={budget} monthStartDay={monthStartDay} />
 
         <ShortcutCard
           icon="wallet-outline"

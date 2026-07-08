@@ -8,6 +8,7 @@ import { Currency, TripTransactionType } from '../types';
 import { CurrencyPicker } from './CurrencyPicker';
 
 interface Props {
+  defaultCurrency?: Currency | 'ILS';
   onAdd: (
     type: TripTransactionType,
     amount: number,
@@ -23,13 +24,13 @@ const TYPE_OPTIONS: { key: TripTransactionType; label: string }[] = [
   { key: 'fee', label: 'עמלה' },
 ];
 
-export function AddTripTransactionForm({ onAdd }: Props) {
+export function AddTripTransactionForm({ defaultCurrency = 'ILS', onAdd }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const [type, setType] = useState<TripTransactionType>('expense');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
-  const [currency, setCurrency] = useState<Currency | 'ILS'>('ILS');
+  const [currency, setCurrency] = useState<Currency | 'ILS'>(defaultCurrency);
   const [rate, setRate] = useState<number | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
 
@@ -65,7 +66,7 @@ export function AddTripTransactionForm({ onAdd }: Props) {
     }
     setAmount('');
     setNote('');
-    setCurrency('ILS');
+    setCurrency(defaultCurrency);
   };
 
   return (

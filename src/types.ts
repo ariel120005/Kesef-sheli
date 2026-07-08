@@ -1,12 +1,12 @@
-export type Category =
-  | 'מזון'
-  | 'תחבורה'
-  | 'דיור'
-  | 'בילויים'
-  | 'קניות'
-  | 'בריאות'
-  | 'חשבונות'
-  | 'אחר';
+// A free-text category name — categories are user-managed (see CategoryDef below), not a fixed
+// list, so this is no longer a literal union.
+export type Category = string;
+
+export interface CategoryDef {
+  id: string;
+  name: string;
+  color: string;
+}
 
 export type Currency = 'USD' | 'EUR' | 'THB' | 'VND';
 
@@ -29,7 +29,7 @@ export interface Expense {
 
 export type TabKey = 'map' | 'home' | 'insights';
 
-export type OverlayScreen = 'profileMenu' | 'settings' | 'account' | 'trips' | 'savingsGoal';
+export type OverlayScreen = 'profileMenu' | 'settings' | 'account' | 'trips' | 'savingsGoal' | 'categories';
 
 export interface Trip {
   id: string;

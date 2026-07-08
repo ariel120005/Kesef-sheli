@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { AmountInputModal } from '../components/AmountInputModal';
 import { SavingsGoalCard } from '../components/SavingsGoalCard';
 import { isFirebaseConfigured } from '../firebase';
+import { useAppSettings } from '../hooks/useAppSettings';
 import { useAuth } from '../hooks/useAuth';
 import { useBudget } from '../hooks/useBudget';
 import { useDemoBudgetData } from '../hooks/useDemoBudgetData';
@@ -23,14 +24,16 @@ export function SavingsGoalScreen({ onBack }: Props) {
   const firestoreExpenses = useExpenses(user?.uid ?? null);
   const firestoreBudget = useBudget(user?.uid ?? null);
   const firestoreSavingsGoal = useSavingsGoal(user?.uid ?? null);
+  const firestoreSettings = useAppSettings(user?.uid ?? null);
   const demo = useDemoBudgetData();
   const [savingsModalVisible, setSavingsModalVisible] = useState(false);
 
-  const { expenses, budget, savingsGoal, updateSavingsGoal, loaded } = isFirebaseConfigured
+  const { expenses, budget, savingsGoal, monthStartDay, updateSavingsGoal, loaded } = isFirebaseConfigured
     ? {
         expenses: firestoreExpenses.expenses,
         budget: firestoreBudget.budget,
         savingsGoal: firestoreSavingsGoal.savingsGoal,
+        monthStartDay: firestoreSettings.monthStartDay,
         updateSavingsGoal: firestoreSavingsGoal.updateSavingsGoal,
         loaded: firestoreExpenses.loaded && firestoreBudget.loaded,
       }
@@ -38,13 +41,14 @@ export function SavingsGoalScreen({ onBack }: Props) {
         expenses: demo.expenses,
         budget: demo.budget,
         savingsGoal: demo.savingsGoal,
+        monthStartDay: demo.monthStartDay,
         updateSavingsGoal: demo.updateSavingsGoal,
         loaded: true,
       };
 
   const monthlySpent = useMemo(
-    () => expenses.filter((e) => isSameMonth(e.date)).reduce((sum, e) => sum + e.amount, 0),
-    [expenses]
+    () => expenses.filter((e) => isSameMonth(e.date, new Date(), monthStartDay)).reduce((sum, e) => sum + e.amount, 0),
+    [expenses, monthStartDay]
   );
 
   return (

@@ -14,8 +14,12 @@ same account's data.
   `@react-native-firebase`, since that requires a custom native build and won't run in Expo Go.
 - Data: Cloud Firestore, scoped per-user under `users/{uid}`.
 - Local-only state: theme preference (`src/theme.tsx`), persisted via AsyncStorage.
-- No navigation library — screens are switched by plain state in `App.tsx`, with a custom
-  bottom tab bar (see below).
+- No navigation library — screens are switched by plain state in `App.tsx` (an `overlayStack`
+  array for the settings/profile/trips/etc. screens, so back navigates one level at a time), with
+  a custom bottom tab bar (see below).
+- CSV export (`src/csvExport.ts`): `expo-file-system` + `expo-sharing` on native (both
+  precompiled into Expo Go, no dev build needed) to write a temp file and open the share sheet; a
+  plain `Blob` + anchor-click download on web.
 - Charts: `react-native-svg` for the category donut chart (works in Expo Go and on web via
   react-native-web, no custom native code). Map tab (web): `maplibre-gl` (vector-tile rendering,
   styled by MapTiler, needs a free MapTiler API key — see "MapTiler setup" below) plus Nominatim
@@ -60,12 +64,21 @@ and the UI shows a "Firebase לא מוגדר" message instead of crashing.
 
 ### Firestore data model
 
-- `users/{uid}` — document with `budget` (monthly budget) and `savingsGoal` (monthly savings
-  target) fields.
+- `users/{uid}` — document with `budget` (monthly budget), `savingsGoal` (monthly savings
+  target), `defaultCurrency` (default selection for the currency picker — `'ILS'` or a
+  `Currency` code), `monthStartDay` (1–28, which day of the month the budget period resets on —
+  defaults to 1, i.e. the plain calendar month), and `categoriesInitialized` (internal flag set
+  once the default category set has been seeded — see `categories` subcollection below) fields.
 - `users/{uid}/expenses/{autoId}` — one document per expense (`amount`, `category`, `note`,
   `date`, optional `recurring`, optional `autoDetected`, optional `originalAmount`/
   `originalCurrency` when entered in a foreign currency — see "Foreign-currency entry" above).
-  `amount` is always ILS.
+  `amount` is always ILS. `category` is a free-text category name (see the קטגוריות screen under
+  "App structure & navigation" below), not a fixed enum.
+- `users/{uid}/categories/{autoId}` — one document per category (`name`, `color`) the user has
+  added, renamed, or recolored. Seeded with the 8 defaults
+  (`DEFAULT_CATEGORIES` in `src/constants.ts`) the first time a `categories` snapshot for that
+  account comes back empty and `categoriesInitialized` isn't set yet, so deleting down to zero
+  categories afterwards doesn't silently reseed them.
 - `users/{uid}/trips/{tripId}` — one document per trip (`name`, `budget`, `createdAt`), a budget
   kept separate from the monthly budget above.
 - `users/{uid}/trips/{tripId}/transactions/{autoId}` — one document per trip transaction
@@ -85,6 +98,9 @@ service cloud.firestore {
       match /expenses/{expenseId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+      match /categories/{categoryId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
       match /trips/{tripId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
         match /transactions/{transactionId} {
@@ -100,14 +116,20 @@ service cloud.firestore {
 
 Three bottom tabs, bar always visible, RTL order (rightmost → leftmost): תובנות, בית, מפה.
 `App.tsx` also renders a fixed top row (`src/components/TopBar.tsx`) above the tab content — a
-profile icon (rightmost) that opens a dropdown menu, and a search icon next to it. The search icon
-is a no-op placeholder (מפה has its own always-visible search bar built into the map itself — see
-below). Settings, the account/sign-in screen, Trips, and the Savings Goal screen are **not** tabs
-— they're `OverlayScreen`s (`src/types.ts`) reached only via
-the profile dropdown menu (or, for Trips/Savings Goal, via a shortcut card on the Insights tab),
-each with its own back button that returns to whichever tab was active. `App.tsx` holds
-`activeTab` (the three bottom tabs) and `overlayScreen` (which of the four, or `null`) as
-separate state — switching bottom tabs always clears any open overlay screen.
+profile icon (rightmost) that opens the profile menu, a full screen (not a dropdown — see below).
+The search icon next to it is a no-op placeholder shown **only on the מפה tab** (`TopBar`'s
+`showSearch` prop) — it's the only tab with an actual search feature (its own always-visible
+search bar built into the map itself, see below); בית and תובנות don't show it.
+
+Settings, the profile menu, the account/sign-in screen, Trips, Savings Goal, and Categories are
+**not** tabs — they're `OverlayScreen`s (`src/types.ts`) pushed onto a real navigation stack
+(`overlayStack: OverlayScreen[]` in `App.tsx`, not just a single "current screen" — needed because
+these can nest more than one level deep, e.g. profile menu → settings → categories) reached via
+the profile icon (or, for Trips/Savings Goal, also directly via a shortcut card on the Insights
+tab). Each screen's back button calls `popOverlay` (pop the stack one level), so it always returns
+to wherever it was actually opened from — the profile menu if opened from there, or the tab
+directly if opened via an Insights shortcut card. Switching bottom tabs clears the whole overlay
+stack (`closeAllOverlays`).
 
 - **בית (Home)** — the expense tracker's core loop: budget meter (view/edit the monthly budget),
   add-expense form, category breakdown, and the recent-expenses list. Requires being signed in;
@@ -144,14 +166,27 @@ separate state — switching bottom tabs always clears any open overlay screen.
   development build to test
   it on. Picked via Metro's `.web.tsx` platform extension the same way `firebase.ts` /
   `firebase.web.ts` are.
-- **Profile dropdown menu** (opened from the top bar's profile icon) — rows: הגדרות, then
-  התחברות/החשבון שלי (label flips once signed in), then טיולים and יעד חיסכון. The latter two are
-  per-account features: in demo mode they're always shown (there's no sign-in concept there), but
-  in real Firebase mode they're hidden from the menu until the user is actually signed in (the
-  Insights-tab shortcut cards still work either way, just showing the same locked state as Home
-  when signed out).
-  - **הגדרות (Settings)** — light/dark theme toggle (always available), plus sign-out and
-    delete-all-data (only shown when signed in).
+- **פרופיל (Profile menu)** — `src/screens/ProfileMenuScreen.tsx`, opened as a full screen (not a
+  dropdown) from the top bar's profile icon, listing rows: הגדרות, then התחברות/החשבון שלי (label
+  flips once signed in), then טיולים and יעד חיסכון. The latter two are per-account features: in
+  demo mode they're always shown (there's no sign-in concept there), but in real Firebase mode
+  they're hidden from the menu until the user is actually signed in (the Insights-tab shortcut
+  cards still work either way, just showing the same locked state as Home when signed out).
+  - **הגדרות (Settings)** — `src/screens/SettingsScreen.tsx`. Always available: light/dark theme
+    toggle. Per-account (same demo-mode-or-signed-in gating as above): מטבע ברירת מחדל (default
+    currency — a `CurrencyPicker`, sets which currency the amount forms' currency toggle opens on
+    by default; still ILS unless changed), יום תחילת חודש (which day of the month the budget
+    period resets on — 1–28, defaults to 1 — see `getBudgetPeriod` in `src/utils.ts`), ניהול
+    קטגוריות (opens the Categories screen, see below), ייצוא נתונים (CSV) (`src/csvExport.ts`
+    builds the CSV — date/amount/category/note columns, UTF-8 BOM prefix so Hebrew renders
+    correctly in Excel — then downloads it directly via a Blob on web, or writes it to a temp file
+    and opens the native share sheet via `expo-file-system`/`expo-sharing` on native, both
+    precompiled into Expo Go), and איפוס נתונים
+    (deletes all expenses/history only, not the budget/categories/settings — double-confirmed:
+    a first dialog, then a second with the literal message "האם אתה בטוח? פעולה זו בלתי הפיכה", so
+    it can't be tapped by accident). Only shown when actually signed in (real Firebase mode):
+    התנתקות and מחיקת החשבון (deletes the entire `users/{uid}` doc + all subcollections — broader
+    than "איפוס נתונים" above, which only clears expenses).
   - **התחברות / החשבון שלי (Profile)** — shows the email/password sign-in-or-sign-up form
     (`src/screens/AuthScreen.tsx`, rendered `embedded` to skip its standalone header) when signed
     out, or a simple account card (email) when signed in.
@@ -162,12 +197,22 @@ separate state — switching bottom tabs always clears any open overlay screen.
     demo-mode split as Home, with its own local-state mirror hook when Firebase isn't configured.
   - **יעד חיסכון (Savings Goal)** — `src/screens/SavingsGoalScreen.tsx`, the full `SavingsGoalCard`
     (moved out of Home) plus its edit modal.
+  - **קטגוריות (Categories)** — `src/screens/CategoriesScreen.tsx`, reached via Settings' "ניהול
+    קטגוריות" row (not its own top-level menu item). Lists every category as a row (color dot,
+    name, edit/delete icons) plus a "קטגoriה חדשה" row at the top. Add/edit go through the shared
+    `CategoryFormModal.tsx` (name text field + a swatch grid of `CATEGORY_COLOR_SWATCHES` from
+    `src/constants.ts` — no free-form color picker, to keep colors visually consistent). Deleting a
+    category checks whether any expense currently uses its name; if so the delete is blocked with
+    an inline banner instead of a confirm dialog (deleting an in-use category would silently orphan
+    those expenses' category field), otherwise it goes through the normal `ConfirmDialog`.
 
-Home, Insights, and the Savings Goal screen all need the same budget/expenses/savings-goal
-numbers to stay in sync in demo mode now that they're separate screens, so that demo state lives
-in one shared `DemoBudgetDataProvider` (`src/hooks/useDemoBudgetData.tsx`, wrapping the whole app
-in `App.tsx`) instead of being duplicated per screen — real Firebase mode doesn't need this since
-every screen's Firestore hook already reads/writes the same underlying document.
+Home, Insights, Settings, Categories, and the Savings Goal screen all need the same budget/
+expenses/savings-goal/categories/default-currency/month-start-day numbers to stay in sync in demo
+mode now that they're separate screens, so that demo state lives in one shared
+`DemoBudgetDataProvider` (`src/hooks/useDemoBudgetData.tsx`, wrapping the whole app in `App.tsx`)
+instead of being duplicated per screen — real Firebase mode doesn't need this since every screen's
+Firestore hook (`useCategories`, `useAppSettings`, etc.) already reads/writes the same underlying
+document/subcollection.
 
 ## Theming
 
@@ -181,17 +226,22 @@ module-level constant), so it re-renders correctly on theme toggle.
 ## MVP scope
 
 - Sign up / sign in with email + password; data is scoped to the signed-in account.
-- Add an expense: amount, category (fixed Hebrew list), free-text note.
+- Add an expense: amount, category, free-text note. Categories are user-managed (add/rename/
+  recolor/delete via Settings → ניהול קטגוריות, see below), not a fixed list — a new account (or
+  demo mode) is seeded with 8 defaults (`DEFAULT_CATEGORIES` in `src/constants.ts`).
 - Quick-amount shortcuts: fixed ₪20/50/100/200 chips under the amount field on the add-expense
   form that fill it in one tap — a static list, not derived from usage.
 - Foreign-currency entry: the add/edit forms for both regular expenses and trip transactions let
   you enter the amount in USD/EUR/THB/VND instead of ILS (useful mid-trip, so you can type the
-  amount exactly as printed on a local receipt). `src/currency.ts` converts it to ILS using a
-  free, keyless daily-rate API (falls back to a fixed approximate rate if that fetch fails, e.g.
-  offline). Both the original amount+currency and the converted ILS amount are stored
-  (`originalAmount`/`originalCurrency` on `Expense`/`TripTransaction`) and shown side by side in
-  the list — `amount` is always ILS so the rest of the app's math never needs to know about
-  currencies.
+  amount exactly as printed on a local receipt). The currency choice is a compact toggle
+  (`CurrencyPicker.tsx`, shared by all four amount forms) showing just the selected currency
+  (e.g. "₪") that opens a dropdown to switch, instead of showing every option openly — it starts
+  on whichever currency is set as the account's default (Settings → מטבע ברירת מחדל, plain ILS
+  unless changed). `src/currency.ts` converts entered amounts to ILS using a free, keyless
+  daily-rate API (falls back to a fixed approximate rate if that fetch fails, e.g. offline). Both
+  the original amount+currency and the converted ILS amount are stored (`originalAmount`/
+  `originalCurrency` on `Expense`/`TripTransaction`) and shown side by side in the list —
+  `amount` is always ILS so the rest of the app's math never needs to know about currencies.
 - Set a monthly budget.
 - Visual budget meter: gradient bar fills with % of budget spent, the gradient itself
   changes (green → orange → red) as it approaches/exceeds the budget.
@@ -205,9 +255,11 @@ module-level constant), so it re-renders correctly on theme toggle.
   off the client; the local heuristics were chosen as the no-cost, no-backend option.
 - Breakdown of the current month's spending by category, both as a list
   (`CategoryBreakdown.tsx`, on Home) and as a donut chart with a percentage legend
-  (`CategoryDonutChart.tsx`, on the Insights tab). Category colors (`CATEGORY_COLORS` in
-  `src/constants.ts`) are a fixed-order categorical palette derived from the app's own
-  turquoise/purple/green/rose brand hues, validated CVD-safe against both theme surfaces.
+  (`CategoryDonutChart.tsx`, on the Insights tab, colored by each category's own `color` field —
+  `CATEGORY_COLOR_SWATCHES` in `src/constants.ts` is the picker's swatch list, derived from the
+  app's own turquoise/purple/green/rose brand hues and validated CVD-safe against both theme
+  surfaces, but a category can be recolored to any swatch so per-category color isn't guaranteed
+  globally unique once customized).
 - Recent expenses list, newest first, tap an expense to edit its amount/category/note/recurring
   flag, per-item delete (confirm before delete). Empty state shows a small floating-coins
   animation instead of plain text (`src/components/EmptyExpensesState.tsx`).
@@ -216,8 +268,15 @@ module-level constant), so it re-renders correctly on theme toggle.
   latest instance of each distinct recurring "series" (matched by category+note+amount) is from
   a past calendar month, and if so auto-logs a fresh copy dated today. No cron job, no
   Cloud Function.
-- "Current month" is always the real calendar month (no month picker in the MVP).
-- Settings: light/dark mode toggle, sign out, delete all data (with confirmation).
+- "Current month" for the budget meter, category breakdown/donut, AI insights, and savings goal
+  is the calendar month by default, but shifted to start on a custom day instead of the 1st if the
+  account has set יום תחילת חודש (Settings) — e.g. day 10 so a payday-to-payday budget period lines
+  up with when salary actually arrives. `getBudgetPeriod`/`isSameMonth` in `src/utils.ts` compute
+  this; no month **picker** (browsing past months) exists in the MVP.
+- Settings: light/dark mode toggle; per-account (demo mode, or signed-in real mode): default
+  currency, month-start day, category management, CSV export, and a double-confirmed reset of all
+  expenses/history (see "Profile menu" under "App structure & navigation" above for the full
+  breakdown); signed-in-only: sign out, delete the whole account.
 - Trip mode: create a trip with a name and its own budget (separate from the monthly budget).
   Inside a trip, log `expense` transactions as normal, `fee` transactions for cash-withdrawal
   fees (kept out of expense category totals), and `reimbursement` transactions for money
@@ -246,42 +305,51 @@ icon/button with a label. This keeps behavior predictable when testing live in E
 ## Project structure
 
 ```
-App.tsx                              ThemeProvider + AuthProvider + DemoBudgetDataProvider + tab/overlay switching
-src/types.ts                         Expense, Category, TabKey, OverlayScreen, Trip, TripTransaction types
-src/constants.ts                     category list, BRAND/DARK_COLORS/LIGHT_COLORS, gradients, CATEGORY_COLORS
+App.tsx                              ThemeProvider + AuthProvider + DemoBudgetDataProvider + tab/overlay-stack switching
+src/types.ts                         Expense, Category, CategoryDef, TabKey, OverlayScreen, Trip, TripTransaction types
+src/constants.ts                     DEFAULT_CATEGORIES, CATEGORY_COLOR_SWATCHES, BRAND/DARK_COLORS/LIGHT_COLORS, gradients
 src/theme.tsx                        ThemeProvider/useTheme (dark/light, persisted)
 src/firebaseConfig.ts                reads EXPO_PUBLIC_FIREBASE_* env vars
 src/firebase.ts / firebase.web.ts    platform-specific Firebase app/auth/db init
 src/maptilerConfig.ts                reads EXPO_PUBLIC_MAPTILER_KEY, isMapTilerConfigured flag
-src/utils.ts                         currency formatting, month-matching helpers
+src/utils.ts                         currency formatting, getBudgetPeriod/isSameMonth (month-start-day aware)
 src/currency.ts                      foreign-currency list, live-rate fetch (+ offline fallback), formatting
+src/csvExport.ts                     builds + downloads/shares a CSV of all expenses
 src/hooks/useAuth.tsx                AuthProvider/useAuth (sign up/in/out, current user)
 src/hooks/useExpenses.ts             Firestore-backed expenses (onSnapshot, add, delete)
 src/hooks/useBudget.ts               Firestore-backed monthly budget (onSnapshot, update)
 src/hooks/useSavingsGoal.ts          Firestore-backed savings goal (onSnapshot, update)
-src/hooks/useDemoBudgetData.tsx      DemoBudgetDataProvider/useDemoBudgetData — shared demo expenses/budget/goal state
+src/hooks/useCategories.ts           Firestore-backed categories (onSnapshot, add/update/delete, lazy default-seeding)
+src/hooks/useAppSettings.ts          Firestore-backed defaultCurrency + monthStartDay (onSnapshot, update)
+src/hooks/useDemoBudgetData.tsx      DemoBudgetDataProvider/useDemoBudgetData — shared demo expenses/budget/goal/
+                                      categories/defaultCurrency/monthStartDay state
 src/hooks/useTrips.ts                Firestore-backed trips (onSnapshot, add, delete)
 src/hooks/useTripTransactions.ts     Firestore-backed transactions for one trip (onSnapshot, add, update, delete)
-src/insights.ts                      rule-based Hebrew insight generator (no LLM call)
+src/insights.ts                      rule-based Hebrew insight generator (no LLM call), month-start-day aware
 src/recurring.ts                     finds which recurring expenses need this month's copy
 src/bankNotificationParser.ts        pure text parsing: bank notification → charge/credit, merchant → category
-src/demoData.ts                      sample expenses/budget/goal/trips for demo mode
+src/demoData.ts                      sample expenses/budget/goal/trips/categories for demo mode
 src/screens/HomeScreen.tsx           budget meter + add-expense form + category breakdown + expense list
 src/screens/InsightsScreen.tsx       AI insights card + category donut chart + savings-goal/trips shortcut cards
 src/screens/AuthScreen.tsx           sign-in / sign-up form (supports embedded mode, no standalone header)
+src/screens/ProfileMenuScreen.tsx    full-screen profile menu (settings/account/trips/savings-goal rows; overlay screen)
 src/screens/ProfileScreen.tsx        AuthScreen when signed out, account card when signed in (overlay screen)
 src/screens/TripsScreen.tsx          trip list + trip detail (auth-gated, or demo mode; overlay screen)
 src/screens/SavingsGoalScreen.tsx    full savings-goal card + edit modal (overlay screen)
-src/screens/SettingsScreen.tsx       theme toggle, sign out, delete all data (overlay screen)
+src/screens/SettingsScreen.tsx       theme toggle, default currency, month-start day, categories nav, CSV export,
+                                      reset data, sign out, delete account (overlay screen)
+src/screens/CategoriesScreen.tsx     category list (color/name/edit/delete) + add row (overlay screen)
 src/screens/MapScreen.tsx / .web.tsx world map: static react-native-webview embed (native) vs
                                       real MapLibre GL map + Nominatim place search + expense pins (web)
-src/components/TopBar.tsx            profile icon (+ dropdown menu) and search icon, shown above the tab content
+src/components/TopBar.tsx            profile icon (opens the profile menu screen) + search icon (Map tab only)
 src/components/BottomTabBar.tsx      fixed 3-tab bottom bar (תובנות / בית / מפה)
 src/components/BudgetMeter.tsx       gradient progress bar + set-budget button
 src/components/SavingsGoalCard.tsx   savings goal progress bar + set-goal button
-src/components/AmountInputModal.tsx  generic modal to input/edit an amount (budget, savings goal)
-src/components/AddExpenseForm.tsx    amount/category/note/recurring inputs + add button
-src/components/EditExpenseModal.tsx  edit an existing expense's amount/category/note/recurring
+src/components/AmountInputModal.tsx  generic modal to input/edit an amount (budget, savings goal, month-start day)
+src/components/CurrencyPicker.tsx    compact currency toggle + dropdown, shared by all four amount forms/modals
+src/components/AddExpenseForm.tsx    amount/currency/category/note/recurring inputs + add button
+src/components/EditExpenseModal.tsx  edit an existing expense's amount/currency/category/note/recurring
+src/components/CategoryFormModal.tsx shared add/edit-category modal: name field + color swatch grid
 src/components/EmptyExpensesState.tsx animated "no expenses yet" illustration
 src/components/AIInsightsCard.tsx    renders the generated insight strings
 src/components/CategoryBreakdown.tsx per-category totals for the current month (list form)
@@ -291,9 +359,9 @@ src/components/ConfirmDialog.tsx     custom confirm modal (Alert.alert is a no-o
 src/components/CreateTripModal.tsx   trip creation form (name + budget)
 src/components/TripCard.tsx          trip list-item summary (gross/net/budget bar)
 src/components/TripStatsCard.tsx     trip detail stats (gross, reimbursed, net, budget, remaining)
-src/components/AddTripTransactionForm.tsx  type chips (הוצאה/החזר/עמלה) + amount/note + add
+src/components/AddTripTransactionForm.tsx  type chips (הוצאה/החזר/עמלה) + amount/currency/note + add
 src/components/TripTransactionList.tsx     trip transactions list, tap to edit, delete button
-src/components/EditTripTransactionModal.tsx edit an existing trip transaction's type/amount/note
+src/components/EditTripTransactionModal.tsx edit an existing trip transaction's type/amount/currency/note
 ```
 
 ## Commands

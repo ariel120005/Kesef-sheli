@@ -1,14 +1,15 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { CATEGORIES, GRADIENTS, SHADOW } from '../constants';
+import { GRADIENTS, SHADOW } from '../constants';
 import { formatForeignAmount, getExchangeRateToILS } from '../currency';
 import { ThemeColors, useTheme } from '../theme';
-import { Category, Currency, Expense } from '../types';
+import { Category, CategoryDef, Currency, Expense } from '../types';
 import { CurrencyPicker } from './CurrencyPicker';
 
 interface Props {
   expense: Expense | null;
+  categories: CategoryDef[];
   onClose: () => void;
   onSave: (
     id: string,
@@ -21,11 +22,11 @@ interface Props {
   ) => void;
 }
 
-export function EditExpenseModal({ expense, onClose, onSave }: Props) {
+export function EditExpenseModal({ expense, categories, onClose, onSave }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<Category>(CATEGORIES[0]);
+  const [category, setCategory] = useState<Category>('');
   const [note, setNote] = useState('');
   const [recurring, setRecurring] = useState(false);
   const [currency, setCurrency] = useState<Currency | 'ILS'>('ILS');
@@ -109,25 +110,25 @@ export function EditExpenseModal({ expense, onClose, onSave }: Props) {
           )}
 
           <View style={styles.categoryWrap}>
-            {CATEGORIES.map((cat) => {
-              const selected = cat === category;
+            {categories.map((cat) => {
+              const selected = cat.name === category;
               if (selected) {
                 return (
-                  <Pressable key={cat} onPress={() => setCategory(cat)}>
+                  <Pressable key={cat.id} onPress={() => setCategory(cat.name)}>
                     <LinearGradient
                       colors={GRADIENTS.primary}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={[styles.categoryChip, styles.categoryChipSelected]}
                     >
-                      <Text style={styles.categoryChipTextSelected}>{cat}</Text>
+                      <Text style={styles.categoryChipTextSelected}>{cat.name}</Text>
                     </LinearGradient>
                   </Pressable>
                 );
               }
               return (
-                <Pressable key={cat} onPress={() => setCategory(cat)} style={styles.categoryChip}>
-                  <Text style={styles.categoryChipText}>{cat}</Text>
+                <Pressable key={cat.id} onPress={() => setCategory(cat.name)} style={styles.categoryChip}>
+                  <Text style={styles.categoryChipText}>{cat.name}</Text>
                 </Pressable>
               );
             })}

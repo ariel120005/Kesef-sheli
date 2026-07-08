@@ -8,9 +8,10 @@ import { formatCurrency, isSameMonth } from '../utils';
 
 interface Props {
   expenses: Expense[];
+  monthStartDay?: number;
 }
 
-export function CategoryBreakdown({ expenses }: Props) {
+export function CategoryBreakdown({ expenses, monthStartDay = 1 }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
 
@@ -18,7 +19,7 @@ export function CategoryBreakdown({ expenses }: Props) {
     const totals = new Map<string, number>();
     let monthTotal = 0;
     for (const e of expenses) {
-      if (!isSameMonth(e.date)) continue;
+      if (!isSameMonth(e.date, new Date(), monthStartDay)) continue;
       totals.set(e.category, (totals.get(e.category) ?? 0) + e.amount);
       monthTotal += e.amount;
     }
@@ -29,7 +30,7 @@ export function CategoryBreakdown({ expenses }: Props) {
         percent: monthTotal > 0 ? (total / monthTotal) * 100 : 0,
       }))
       .sort((a, b) => b.total - a.total);
-  }, [expenses]);
+  }, [expenses, monthStartDay]);
 
   return (
     <View style={[styles.card, SHADOW]}>

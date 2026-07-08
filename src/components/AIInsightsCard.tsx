@@ -9,13 +9,17 @@ import { Expense } from '../types';
 interface Props {
   expenses: Expense[];
   budget: number | null;
+  monthStartDay?: number;
 }
 
-export function AIInsightsCard({ expenses, budget }: Props) {
+export function AIInsightsCard({ expenses, budget, monthStartDay = 1 }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
 
-  const insights = useMemo(() => generateInsights(expenses, budget), [expenses, budget]);
+  const insights = useMemo(
+    () => generateInsights(expenses, budget, monthStartDay),
+    [expenses, budget, monthStartDay]
+  );
 
   return (
     <View style={[styles.card, SHADOW]}>

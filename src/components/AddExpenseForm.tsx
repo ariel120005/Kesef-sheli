@@ -1,13 +1,15 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { CATEGORIES, GRADIENTS, SHADOW } from '../constants';
+import { GRADIENTS, SHADOW } from '../constants';
 import { formatForeignAmount, getExchangeRateToILS } from '../currency';
 import { ThemeColors, useTheme } from '../theme';
-import { Category, Currency } from '../types';
+import { Category, CategoryDef, Currency } from '../types';
 import { CurrencyPicker } from './CurrencyPicker';
 
 interface Props {
+  categories: CategoryDef[];
+  defaultCurrency?: Currency | 'ILS';
   onAdd: (
     amount: number,
     category: Category,
@@ -20,16 +22,20 @@ interface Props {
 
 const QUICK_AMOUNTS = [20, 50, 100, 200];
 
-export function AddExpenseForm({ onAdd }: Props) {
+export function AddExpenseForm({ categories, defaultCurrency = 'ILS', onAdd }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<Category>(CATEGORIES[0]);
+  const [category, setCategory] = useState<Category>('');
   const [note, setNote] = useState('');
   const [recurring, setRecurring] = useState(false);
-  const [currency, setCurrency] = useState<Currency | 'ILS'>('ILS');
+  const [currency, setCurrency] = useState<Currency | 'ILS'>(defaultCurrency);
   const [rate, setRate] = useState<number | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
+
+  useEffect(() => {
+    if (!category && categories.length > 0) setCategory(categories[0].name);
+  }, [categories, category]);
 
   useEffect(() => {
     if (currency === 'ILS') {
@@ -54,7 +60,7 @@ export function AddExpenseForm({ onAdd }: Props) {
   const convertedILS = isForeign && rate && !isNaN(parsedAmount) ? parsedAmount * rate : null;
 
   const handleSubmit = () => {
-    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) return;
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0 || !category) return;
     if (isForeign) {
       if (!rate) return;
       onAdd(parsedAmount * rate, category, note.trim(), recurring, parsedAmount, currency);
@@ -64,7 +70,7 @@ export function AddExpenseForm({ onAdd }: Props) {
     setAmount('');
     setNote('');
     setRecurring(false);
-    setCurrency('ILS');
+    setCurrency(defaultCurrency);
   };
 
   return (
@@ -109,25 +115,25 @@ export function AddExpenseForm({ onAdd }: Props) {
       )}
 
       <View style={styles.categoryWrap}>
-        {CATEGORIES.map((cat) => {
-          const selected = cat === category;
+        {categories.map((cat) => {
+          const selected = cat.name === category;
           if (selected) {
             return (
-              <Pressable key={cat} onPress={() => setCategory(cat)}>
+              <Pressable key={cat.id} onPress={() => setCategory(cat.name)}>
                 <LinearGradient
                   colors={GRADIENTS.primary}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={[styles.categoryChip, styles.categoryChipSelected]}
                 >
-                  <Text style={styles.categoryChipTextSelected}>{cat}</Text>
+                  <Text style={styles.categoryChipTextSelected}>{cat.name}</Text>
                 </LinearGradient>
               </Pressable>
             );
           }
           return (
-            <Pressable key={cat} onPress={() => setCategory(cat)} style={styles.categoryChip}>
-              <Text style={styles.categoryChipText}>{cat}</Text>
+            <Pressable key={cat.id} onPress={() => setCategory(cat.name)} style={styles.categoryChip}>
+              <Text style={styles.categoryChipText}>{cat.name}</Text>
             </Pressable>
           );
         })}

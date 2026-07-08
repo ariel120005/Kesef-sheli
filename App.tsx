@@ -5,6 +5,7 @@ import { BottomTabBar } from './src/components/BottomTabBar';
 import { TopBar } from './src/components/TopBar';
 import { AuthProvider, useAuth } from './src/hooks/useAuth';
 import { DemoBudgetDataProvider } from './src/hooks/useDemoBudgetData';
+import { CategoriesScreen } from './src/screens/CategoriesScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { InsightsScreen } from './src/screens/InsightsScreen';
 import { MapScreen } from './src/screens/MapScreen';
@@ -21,11 +22,10 @@ function AppContent() {
   const { initializing } = useAuth();
   const styles = getStyles(colors);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
-  const [overlayScreen, setOverlayScreen] = useState<OverlayScreen | null>(null);
-  // Which screen "back" should return to for the screens reachable from the profile menu
-  // (settings/account/trips/savingsGoal) — the profile menu itself if that's how we got here,
-  // or null (the active tab) when opened directly, e.g. via the Insights shortcut cards.
-  const [overlayBack, setOverlayBack] = useState<OverlayScreen | null>(null);
+  // A real stack (not just one "current" screen) so back navigates one level at a time no matter
+  // how deep — e.g. profile menu → settings → categories → back → settings → back → profile menu.
+  const [overlayStack, setOverlayStack] = useState<OverlayScreen[]>([]);
+  const overlayScreen = overlayStack[overlayStack.length - 1] ?? null;
 
   if (initializing) {
     return (
@@ -38,21 +38,9 @@ function AppContent() {
     );
   }
 
-  const closeOverlay = () => {
-    setOverlayScreen(null);
-    setOverlayBack(null);
-  };
-  // Opened directly (Insights shortcut cards, TopBar profile icon): back returns to the tab.
-  const openOverlay = (screen: OverlayScreen) => {
-    setOverlayBack(null);
-    setOverlayScreen(screen);
-  };
-  // Opened from within the profile menu: back returns to the profile menu, not the tab.
-  const openFromProfileMenu = (screen: OverlayScreen) => {
-    setOverlayBack('profileMenu');
-    setOverlayScreen(screen);
-  };
-  const backFromOverlay = () => setOverlayScreen(overlayBack);
+  const pushOverlay = (screen: OverlayScreen) => setOverlayStack((stack) => [...stack, screen]);
+  const popOverlay = () => setOverlayStack((stack) => stack.slice(0, -1));
+  const closeAllOverlays = () => setOverlayStack([]);
 
   return (
     <SafeAreaProvider>
@@ -61,7 +49,7 @@ function AppContent() {
 
         {overlayScreen === null && (
           <TopBar
-            onOpenProfileMenu={() => openOverlay('profileMenu')}
+            onOpenProfileMenu={() => pushOverlay('profileMenu')}
             showSearch={activeTab === 'map'}
             floating={activeTab === 'map'}
           />
@@ -70,25 +58,28 @@ function AppContent() {
         {overlayScreen === null && activeTab === 'home' && <HomeScreen />}
         {overlayScreen === null && activeTab === 'insights' && (
           <InsightsScreen
-            onOpenTrips={() => openOverlay('trips')}
-            onOpenSavingsGoal={() => openOverlay('savingsGoal')}
+            onOpenTrips={() => pushOverlay('trips')}
+            onOpenSavingsGoal={() => pushOverlay('savingsGoal')}
           />
         )}
         {overlayScreen === null && activeTab === 'map' && <MapScreen />}
         {overlayScreen === 'profileMenu' && (
-          <ProfileMenuScreen onBack={closeOverlay} onNavigate={openFromProfileMenu} />
+          <ProfileMenuScreen onBack={popOverlay} onNavigate={pushOverlay} />
         )}
-        {overlayScreen === 'settings' && <SettingsScreen onBack={backFromOverlay} />}
-        {overlayScreen === 'account' && <ProfileScreen onBack={backFromOverlay} />}
-        {overlayScreen === 'trips' && <TripsScreen onBack={backFromOverlay} />}
-        {overlayScreen === 'savingsGoal' && <SavingsGoalScreen onBack={backFromOverlay} />}
+        {overlayScreen === 'settings' && (
+          <SettingsScreen onBack={popOverlay} onOpenCategories={() => pushOverlay('categories')} />
+        )}
+        {overlayScreen === 'account' && <ProfileScreen onBack={popOverlay} />}
+        {overlayScreen === 'trips' && <TripsScreen onBack={popOverlay} />}
+        {overlayScreen === 'savingsGoal' && <SavingsGoalScreen onBack={popOverlay} />}
+        {overlayScreen === 'categories' && <CategoriesScreen onBack={popOverlay} />}
       </SafeAreaView>
 
       <SafeAreaView style={styles.tabBarSafeArea} edges={['bottom', 'left', 'right']}>
         <BottomTabBar
           active={activeTab}
           onChange={(tab) => {
-            closeOverlay();
+            closeAllOverlays();
             setActiveTab(tab);
           }}
         />

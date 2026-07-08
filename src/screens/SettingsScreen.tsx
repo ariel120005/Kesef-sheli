@@ -2,23 +2,60 @@ import { Ionicons } from '@expo/vector-icons';
 import { collection, deleteDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { AmountInputModal } from '../components/AmountInputModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { CurrencyPicker } from '../components/CurrencyPicker';
 import { SHADOW } from '../constants';
-import { db } from '../firebase';
+import { exportExpensesCSV } from '../csvExport';
+import { db, isFirebaseConfigured } from '../firebase';
+import { useAppSettings } from '../hooks/useAppSettings';
 import { useAuth } from '../hooks/useAuth';
+import { useDemoBudgetData } from '../hooks/useDemoBudgetData';
+import { useExpenses } from '../hooks/useExpenses';
 import { ThemeColors, useTheme } from '../theme';
 
 interface Props {
   onBack: () => void;
+  onOpenCategories: () => void;
 }
 
-export function SettingsScreen({ onBack }: Props) {
+export function SettingsScreen({ onBack, onOpenCategories }: Props) {
   const { colors, mode, toggleTheme } = useTheme();
   const styles = getStyles(colors);
   const { user, signOut } = useAuth();
+  const uid = isFirebaseConfigured ? user?.uid ?? null : null;
+  const firestoreExpenses = useExpenses(uid);
+  const firestoreSettings = useAppSettings(uid);
+  const demo = useDemoBudgetData();
   const [deleting, setDeleting] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingResetStep1, setConfirmingResetStep1] = useState(false);
+  const [confirmingResetStep2, setConfirmingResetStep2] = useState(false);
+  const [monthStartModalVisible, setMonthStartModalVisible] = useState(false);
+
+  // Categories/default currency/month-start-day/export/reset are per-account features — in real
+  // (non-demo) mode they only make sense once actually signed in; in demo mode there's no
+  // sign-in concept at all, so they stay available like every other demo feature.
+  const showAccountFeatures = !isFirebaseConfigured || !!user;
+
+  const { expenses, defaultCurrency, monthStartDay, updateDefaultCurrency, updateMonthStartDay } =
+    isFirebaseConfigured
+      ? {
+          expenses: firestoreExpenses.expenses,
+          defaultCurrency: firestoreSettings.defaultCurrency,
+          monthStartDay: firestoreSettings.monthStartDay,
+          updateDefaultCurrency: firestoreSettings.updateDefaultCurrency,
+          updateMonthStartDay: firestoreSettings.updateMonthStartDay,
+        }
+      : {
+          expenses: demo.expenses,
+          defaultCurrency: demo.defaultCurrency,
+          monthStartDay: demo.monthStartDay,
+          updateDefaultCurrency: demo.updateDefaultCurrency,
+          updateMonthStartDay: demo.updateMonthStartDay,
+        };
 
   const handleDeleteData = async () => {
     if (!user || !db) return;
@@ -31,6 +68,23 @@ export function SettingsScreen({ onBack }: Props) {
       await deleteDoc(doc(db, 'users', user.uid));
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleResetExpenses = async () => {
+    if (!isFirebaseConfigured) {
+      demo.resetAllData();
+      return;
+    }
+    if (!user || !db) return;
+    setResetting(true);
+    try {
+      const expensesSnapshot = await getDocs(collection(db, 'users', user.uid, 'expenses'));
+      const batch = writeBatch(db);
+      expensesSnapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
+      await batch.commit();
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -62,6 +116,60 @@ export function SettingsScreen({ onBack }: Props) {
         </View>
       </View>
 
+      {showAccountFeatures && (
+        <>
+          <View style={[styles.card, SHADOW]}>
+            <View style={styles.row}>
+              <CurrencyPicker value={defaultCurrency} onChange={updateDefaultCurrency} />
+              <View style={styles.rowLabel}>
+                <Ionicons name="cash-outline" size={20} color={colors.text} />
+                <Text style={styles.rowText}>מטבע ברירת מחדל</Text>
+              </View>
+            </View>
+          </View>
+
+          <Pressable
+            style={[styles.card, styles.actionCard, SHADOW]}
+            onPress={() => setMonthStartModalVisible(true)}
+          >
+            <Text style={styles.dayValue}>{monthStartDay}</Text>
+            <View style={styles.rowLabel}>
+              <Ionicons name="calendar-outline" size={20} color={colors.text} />
+              <Text style={styles.rowText}>יום תחילת חודש</Text>
+            </View>
+          </Pressable>
+
+          <Pressable style={[styles.card, styles.actionCard, SHADOW]} onPress={onOpenCategories}>
+            <Ionicons name="chevron-back" size={18} color={colors.subtext} />
+            <View style={styles.rowLabel}>
+              <Ionicons name="pricetags-outline" size={20} color={colors.text} />
+              <Text style={styles.rowText}>ניהול קטגוריות</Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            style={[styles.card, styles.actionCard, SHADOW]}
+            onPress={() => exportExpensesCSV(expenses)}
+          >
+            <Text style={styles.actionText}>ייצוא נתונים (CSV)</Text>
+            <Ionicons name="download-outline" size={20} color={colors.text} />
+          </Pressable>
+
+          <Pressable
+            style={[styles.card, styles.actionCard, SHADOW]}
+            onPress={() => setConfirmingResetStep1(true)}
+            disabled={resetting}
+          >
+            <Text style={[styles.actionText, styles.dangerText]}>איפוס נתונים</Text>
+            {resetting ? (
+              <ActivityIndicator color={colors.danger} />
+            ) : (
+              <Ionicons name="refresh-outline" size={20} color={colors.danger} />
+            )}
+          </Pressable>
+        </>
+      )}
+
       {user && (
         <>
           <Pressable
@@ -77,7 +185,7 @@ export function SettingsScreen({ onBack }: Props) {
             onPress={() => setConfirmingDelete(true)}
             disabled={deleting}
           >
-            <Text style={[styles.actionText, styles.dangerText]}>מחיקת כל הנתונים</Text>
+            <Text style={[styles.actionText, styles.dangerText]}>מחיקת החשבון</Text>
             {deleting ? (
               <ActivityIndicator color={colors.danger} />
             ) : (
@@ -86,6 +194,15 @@ export function SettingsScreen({ onBack }: Props) {
           </Pressable>
         </>
       )}
+
+      <AmountInputModal
+        visible={monthStartModalVisible}
+        title="יום תחילת החודש"
+        placeholder="לדוגמה: 1"
+        initialValue={monthStartDay}
+        onClose={() => setMonthStartModalVisible(false)}
+        onSave={(value) => updateMonthStartDay(Math.min(28, Math.max(1, Math.round(value))))}
+      />
 
       <ConfirmDialog
         visible={confirmingLogout}
@@ -101,13 +218,37 @@ export function SettingsScreen({ onBack }: Props) {
 
       <ConfirmDialog
         visible={confirmingDelete}
-        title="מחיקת כל הנתונים"
-        message="פעולה זו תמחק לצמיתות את כל ההוצאות ואת התקציב שלכם. לא ניתן לבטל."
+        title="מחיקת החשבון"
+        message="פעולה זו תמחק לצמיתות את כל הנתונים שלכם, כולל התקציב והקטגוריות. לא ניתן לבטל."
         confirmLabel="מחיקה"
         onCancel={() => setConfirmingDelete(false)}
         onConfirm={() => {
           setConfirmingDelete(false);
           handleDeleteData();
+        }}
+      />
+
+      <ConfirmDialog
+        visible={confirmingResetStep1}
+        title="איפוס נתונים"
+        message="פעולה זו תמחק את כל ההוצאות וההיסטוריה שלכם. להמשיך?"
+        confirmLabel="המשך"
+        onCancel={() => setConfirmingResetStep1(false)}
+        onConfirm={() => {
+          setConfirmingResetStep1(false);
+          setConfirmingResetStep2(true);
+        }}
+      />
+
+      <ConfirmDialog
+        visible={confirmingResetStep2}
+        title="אזהרה אחרונה"
+        message="האם אתה בטוח? פעולה זו בלתי הפיכה."
+        confirmLabel="איפוס"
+        onCancel={() => setConfirmingResetStep2(false)}
+        onConfirm={() => {
+          setConfirmingResetStep2(false);
+          handleResetExpenses();
         }}
       />
     </View>
@@ -159,6 +300,11 @@ function getStyles(colors: ThemeColors) {
       fontSize: 15,
       fontWeight: '600',
       color: colors.text,
+    },
+    dayValue: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.turquoise,
     },
     actionCard: {
       flexDirection: 'row-reverse',

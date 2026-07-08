@@ -8,8 +8,10 @@ import { CategoryBreakdown } from '../components/CategoryBreakdown';
 import { EditExpenseModal } from '../components/EditExpenseModal';
 import { ExpenseList } from '../components/ExpenseList';
 import { isFirebaseConfigured } from '../firebase';
+import { useAppSettings } from '../hooks/useAppSettings';
 import { useAuth } from '../hooks/useAuth';
 import { useBudget } from '../hooks/useBudget';
+import { useCategories } from '../hooks/useCategories';
 import { useDemoBudgetData } from '../hooks/useDemoBudgetData';
 import { useExpenses } from '../hooks/useExpenses';
 import { ThemeColors, useTheme } from '../theme';
@@ -22,6 +24,8 @@ export function HomeScreen() {
   const { user } = useAuth();
   const firestoreExpenses = useExpenses(user?.uid ?? null);
   const firestoreBudget = useBudget(user?.uid ?? null);
+  const firestoreCategories = useCategories(user?.uid ?? null);
+  const firestoreSettings = useAppSettings(user?.uid ?? null);
   const demo = useDemoBudgetData();
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -29,6 +33,9 @@ export function HomeScreen() {
   const {
     expenses,
     budget,
+    categories,
+    defaultCurrency,
+    monthStartDay,
     addExpense,
     updateExpense,
     deleteExpense,
@@ -39,6 +46,9 @@ export function HomeScreen() {
     ? {
         expenses: firestoreExpenses.expenses,
         budget: firestoreBudget.budget,
+        categories: firestoreCategories.categories,
+        defaultCurrency: firestoreSettings.defaultCurrency,
+        monthStartDay: firestoreSettings.monthStartDay,
         addExpense: firestoreExpenses.addExpense,
         updateExpense: firestoreExpenses.updateExpense,
         deleteExpense: firestoreExpenses.deleteExpense,
@@ -49,6 +59,9 @@ export function HomeScreen() {
     : {
         expenses: demo.expenses,
         budget: demo.budget,
+        categories: demo.categories,
+        defaultCurrency: demo.defaultCurrency,
+        monthStartDay: demo.monthStartDay,
         addExpense: demo.addExpense,
         updateExpense: demo.updateExpense,
         deleteExpense: demo.deleteExpense,
@@ -58,8 +71,8 @@ export function HomeScreen() {
       };
 
   const monthlySpent = useMemo(
-    () => expenses.filter((e) => isSameMonth(e.date)).reduce((sum, e) => sum + e.amount, 0),
-    [expenses]
+    () => expenses.filter((e) => isSameMonth(e.date, new Date(), monthStartDay)).reduce((sum, e) => sum + e.amount, 0),
+    [expenses, monthStartDay]
   );
 
   if (isFirebaseConfigured && !user) {
@@ -104,9 +117,9 @@ export function HomeScreen() {
           onEditBudget={() => setBudgetModalVisible(true)}
         />
 
-        <AddExpenseForm onAdd={addExpense} />
+        <AddExpenseForm categories={categories} defaultCurrency={defaultCurrency} onAdd={addExpense} />
 
-        <CategoryBreakdown expenses={expenses} />
+        <CategoryBreakdown expenses={expenses} monthStartDay={monthStartDay} />
 
         <ExpenseList expenses={expenses} onDelete={deleteExpense} onEdit={setEditingExpense} />
       </ScrollView>
@@ -122,6 +135,7 @@ export function HomeScreen() {
 
       <EditExpenseModal
         expense={editingExpense}
+        categories={categories}
         onClose={() => setEditingExpense(null)}
         onSave={updateExpense}
       />

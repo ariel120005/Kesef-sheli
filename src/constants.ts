@@ -1,16 +1,3 @@
-import { Category } from './types';
-
-export const CATEGORIES: Category[] = [
-  'מזון',
-  'תחבורה',
-  'דיור',
-  'בילויים',
-  'קניות',
-  'בריאות',
-  'חשבונות',
-  'אחר',
-];
-
 // Accent/status colors stay constant across both themes — they read fine on
 // both a near-black and a near-white surface.
 export const BRAND = {
@@ -65,22 +52,32 @@ export const GRADIENTS = {
   over: ['#FB7185', '#E11D48'] as const,
 };
 
-// Categorical colors for per-category charts (donut chart), one per entry in
-// CATEGORIES, in that fixed order — never reassigned/cycled so a category keeps
-// its color everywhere. Chosen as tinted relatives of the app's own turquoise/
-// purple/green/rose brand hues (plus a few more to cover all 8 categories) and
-// validated for CVD-safe adjacent contrast against both the dark and light card
-// surfaces (see the data-viz skill's palette validator).
-export const CATEGORY_COLORS: Record<Category, string> = {
-  מזון: '#0D9488',
-  תחבורה: '#3B82F6',
-  דיור: '#7C3AED',
-  בילויים: '#E11D48',
-  קניות: '#D97706',
-  בריאות: '#059669',
-  חשבונות: '#4F46E5',
-  אחר: '#B45309',
-};
+// Categories are user-managed (add/rename/recolor/delete — see CategoriesScreen), not a fixed
+// list, so this is only the starting set a brand-new account (or demo mode) is seeded with.
+// Colors are tinted relatives of the app's own turquoise/purple/green/rose brand hues, validated
+// for CVD-safe adjacent contrast against both the dark and light card surfaces (see the data-viz
+// skill's palette validator) — also offered as the swatch choices when picking a category color.
+export const DEFAULT_CATEGORIES: { name: string; color: string }[] = [
+  { name: 'מזון', color: '#0D9488' },
+  { name: 'תחבורה', color: '#3B82F6' },
+  { name: 'דיור', color: '#7C3AED' },
+  { name: 'בילויים', color: '#E11D48' },
+  { name: 'קניות', color: '#D97706' },
+  { name: 'בריאות', color: '#059669' },
+  { name: 'חשבונות', color: '#4F46E5' },
+  { name: 'אחר', color: '#B45309' },
+];
+
+export const CATEGORY_COLOR_SWATCHES: string[] = [
+  ...DEFAULT_CATEGORIES.map((c) => c.color),
+  '#0EA5E9',
+  '#DB2777',
+  '#65A30D',
+  '#EA580C',
+];
+
+// Fallback for a category whose color is somehow missing (shouldn't normally happen).
+export const FALLBACK_CATEGORY_COLOR = '#6B7280';
 
 export const SHADOW = {
   shadowColor: '#000000',

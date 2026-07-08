@@ -12,7 +12,9 @@ import { TripTransactionList } from '../components/TripTransactionList';
 import { GRADIENTS } from '../constants';
 import { DEMO_TRIPS, DEMO_TRIP_TRANSACTIONS } from '../demoData';
 import { isFirebaseConfigured } from '../firebase';
+import { useAppSettings } from '../hooks/useAppSettings';
 import { useAuth } from '../hooks/useAuth';
+import { useDemoBudgetData } from '../hooks/useDemoBudgetData';
 import { useTripTransactions } from '../hooks/useTripTransactions';
 import { useTrips } from '../hooks/useTrips';
 import { ThemeColors, useTheme } from '../theme';
@@ -114,7 +116,11 @@ export function TripsScreen({ onBack }: Props) {
   const uid = isFirebaseConfigured ? user?.uid ?? null : null;
 
   const firestoreTrips = useTrips(uid);
+  const firestoreSettings = useAppSettings(uid);
   const demo = useDemoTripsData();
+  const demoSettings = useDemoBudgetData();
+
+  const defaultCurrency = isFirebaseConfigured ? firestoreSettings.defaultCurrency : demoSettings.defaultCurrency;
 
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -215,7 +221,7 @@ export function TripsScreen({ onBack }: Props) {
 
           <TripStatsCard trip={selectedTrip} transactions={transactions} />
 
-          <AddTripTransactionForm onAdd={addTransaction} />
+          <AddTripTransactionForm defaultCurrency={defaultCurrency} onAdd={addTransaction} />
 
           <TripTransactionList
             transactions={transactions}

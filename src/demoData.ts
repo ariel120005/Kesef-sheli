@@ -1,4 +1,5 @@
-import { Expense, Trip, TripTransaction } from './types';
+import { DEFAULT_CATEGORIES } from './constants';
+import { CategoryDef, Expense, Trip, TripTransaction } from './types';
 
 // Fixed day-of-month (not "N days ago") so every sample always lands in the
 // current/previous calendar month, regardless of which day it's viewed on.
@@ -9,6 +10,12 @@ function dayOfMonth(monthOffset: number, day: number): string {
 
 export const DEMO_BUDGET = 4500;
 export const DEMO_SAVINGS_GOAL = 2000;
+
+export const DEMO_CATEGORIES: CategoryDef[] = DEFAULT_CATEGORIES.map((c, index) => ({
+  id: `demo-cat-${index}`,
+  name: c.name,
+  color: c.color,
+}));
 
 export const DEMO_EXPENSES: Expense[] = [
   {
