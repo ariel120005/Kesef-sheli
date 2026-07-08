@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { collection, deleteDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { AmountInputModal } from '../components/AmountInputModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CurrencyPicker } from '../components/CurrencyPicker';
@@ -97,6 +97,7 @@ export function SettingsScreen({
 
   return (
     <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
         <Pressable onPress={onBack} style={styles.backButton} hitSlop={8}>
           <Ionicons name="chevron-forward" size={24} color={colors.text} />
@@ -217,6 +218,7 @@ export function SettingsScreen({
           </Pressable>
         </>
       )}
+      </ScrollView>
 
       <AmountInputModal
         visible={monthStartModalVisible}
@@ -282,7 +284,10 @@ function getStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
       flex: 1,
+    },
+    content: {
       padding: 22,
+      paddingBottom: 40,
     },
     headerRow: {
       flexDirection: 'row-reverse',

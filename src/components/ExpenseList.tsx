@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SHADOW } from '../constants';
 import { formatForeignAmount } from '../currency';
@@ -7,6 +7,8 @@ import { Expense } from '../types';
 import { formatCurrency, formatDate } from '../utils';
 import { ConfirmDialog } from './ConfirmDialog';
 import { EmptyExpensesState } from './EmptyExpensesState';
+
+const PAGE_SIZE = 10;
 
 interface Props {
   expenses: Expense[];
@@ -18,10 +20,14 @@ export function ExpenseList({ expenses, onDelete, onEdit }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  const sorted = [...expenses].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  const sorted = useMemo(
+    () => [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [expenses]
   );
+  const visible = sorted.slice(0, visibleCount);
+  const hasMore = sorted.length > visibleCount;
 
   return (
     <View style={[styles.card, SHADOW]}>
@@ -29,7 +35,8 @@ export function ExpenseList({ expenses, onDelete, onEdit }: Props) {
       {sorted.length === 0 ? (
         <EmptyExpensesState />
       ) : (
-        sorted.map((expense) => (
+        <>
+        {visible.map((expense) => (
           <View key={expense.id} style={styles.row}>
             <Pressable onPress={() => setPendingDelete(expense)} style={styles.deleteButton}>
               <Text style={styles.deleteButtonText}>מחק</Text>
@@ -55,7 +62,16 @@ export function ExpenseList({ expenses, onDelete, onEdit }: Props) {
               <Text style={styles.date}>{formatDate(expense.date)}</Text>
             </Pressable>
           </View>
-        ))
+        ))}
+        {hasMore && (
+          <Pressable
+            style={styles.loadMoreButton}
+            onPress={() => setVisibleCount((count) => count + PAGE_SIZE)}
+          >
+            <Text style={styles.loadMoreText}>טען עוד...</Text>
+          </Pressable>
+        )}
+        </>
       )}
 
       <ConfirmDialog
@@ -164,6 +180,16 @@ function getStyles(colors: ThemeColors) {
     deleteButtonText: {
       color: colors.danger,
       fontSize: 12,
+      fontWeight: '700',
+    },
+    loadMoreButton: {
+      alignItems: 'center',
+      paddingVertical: 14,
+      marginTop: 4,
+    },
+    loadMoreText: {
+      color: colors.turquoise,
+      fontSize: 14,
       fontWeight: '700',
     },
   });
