@@ -74,7 +74,15 @@ export const DEMO_EXPENSES: Expense[] = [
 
 export const DEMO_TRIPS: Trip[] = [
   { id: 'demo-trip-1', name: 'טיול לאילת', budget: 2000, createdAt: dayOfMonth(0, 1) },
-  { id: 'demo-trip-2', name: 'טיול לבנגקוק', budget: 5000, createdAt: dayOfMonth(-1, 14) },
+  {
+    id: 'demo-trip-2',
+    name: 'טיול בדרום מזרח אסיה',
+    budget: 5000,
+    createdAt: dayOfMonth(-1, 14),
+    // Finished trip, to demo the trip-summary card (gross/net/days/daily average) — stays
+    // visible whenever this trip is reopened, since endedAt is never cleared.
+    endedAt: dayOfMonth(-1, 21),
+  },
 ];
 
 export const DEMO_TRIP_TRANSACTIONS: Record<string, TripTransaction[]> = {
@@ -84,12 +92,15 @@ export const DEMO_TRIP_TRANSACTIONS: Record<string, TripTransaction[]> = {
     { id: 'demo-tx-3', type: 'fee', amount: 15, note: 'עמלת משיכה', date: dayOfMonth(0, 3) },
     { id: 'demo-tx-4', type: 'reimbursement', amount: 200, note: 'החזר מדני על המלון', date: dayOfMonth(0, 4) },
   ],
+  // Mixes three currencies across the same trip (USD/VND early on in Vietnam, THB later in
+  // Thailand) — every transaction keeps its own original amount+currency, while the trip's
+  // gross/net/daily totals (TripStatsCard, TripSummaryCard) are always summed in ILS.
   'demo-trip-2': [
     {
       id: 'demo-tx-5',
       type: 'expense',
       amount: 370,
-      note: 'מלון',
+      note: 'מלון בהאנוי',
       date: dayOfMonth(-1, 15),
       originalAmount: 100,
       originalCurrency: 'USD',
@@ -98,12 +109,27 @@ export const DEMO_TRIP_TRANSACTIONS: Record<string, TripTransaction[]> = {
       id: 'demo-tx-6',
       type: 'expense',
       amount: 120,
-      note: 'ארוחת ערב',
+      note: 'ארוחות בוייטנאם',
       date: dayOfMonth(-1, 16),
-      originalAmount: 1200,
-      originalCurrency: 'THB',
+      originalAmount: 800000,
+      originalCurrency: 'VND',
     },
     { id: 'demo-tx-7', type: 'fee', amount: 12, note: 'עמלת משיכה', date: dayOfMonth(-1, 15) },
-    { id: 'demo-tx-8', type: 'reimbursement', amount: 150, note: 'החזר מרוני על הטיסה', date: dayOfMonth(-1, 17) },
+    {
+      id: 'demo-tx-8',
+      type: 'expense',
+      amount: 90,
+      note: 'ארוחת ערב בבנגקוק',
+      date: dayOfMonth(-1, 19),
+      originalAmount: 900,
+      originalCurrency: 'THB',
+    },
+    {
+      id: 'demo-tx-9',
+      type: 'reimbursement',
+      amount: 150,
+      note: 'החזר מרוני על הטיסה',
+      date: dayOfMonth(-1, 20),
+    },
   ],
 };

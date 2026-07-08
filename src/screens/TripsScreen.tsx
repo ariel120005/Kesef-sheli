@@ -8,6 +8,7 @@ import { CreateTripModal } from '../components/CreateTripModal';
 import { EditTripTransactionModal } from '../components/EditTripTransactionModal';
 import { TripCard } from '../components/TripCard';
 import { TripStatsCard } from '../components/TripStatsCard';
+import { TripSummaryCard } from '../components/TripSummaryCard';
 import { TripTransactionList } from '../components/TripTransactionList';
 import { GRADIENTS } from '../constants';
 import { DEMO_TRIPS, DEMO_TRIP_TRANSACTIONS } from '../demoData';
@@ -38,6 +39,10 @@ function useDemoTripsData() {
       delete next[id];
       return next;
     });
+  };
+
+  const endTrip = (id: string) => {
+    setTrips((prev) => prev.map((t) => (t.id === id ? { ...t, endedAt: new Date().toISOString() } : t)));
   };
 
   const addTransaction = (
@@ -84,7 +89,16 @@ function useDemoTripsData() {
     }));
   };
 
-  return { trips, transactionsByTrip, addTrip, deleteTrip, addTransaction, updateTransaction, deleteTransaction };
+  return {
+    trips,
+    transactionsByTrip,
+    addTrip,
+    deleteTrip,
+    endTrip,
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+  };
 }
 
 // Each trip in the list needs its own live transactions to compute gross/net, so the
@@ -126,6 +140,7 @@ export function TripsScreen({ onBack }: Props) {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [pendingDeleteTrip, setPendingDeleteTrip] = useState<Trip | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<TripTransaction | null>(null);
+  const [confirmingEndTrip, setConfirmingEndTrip] = useState(false);
 
   const firestoreTripTransactions = useTripTransactions(uid, selectedTripId);
 
@@ -144,6 +159,9 @@ export function TripsScreen({ onBack }: Props) {
 
   const deleteTrip = (id: string) =>
     isFirebaseConfigured ? firestoreTrips.deleteTrip(id) : demo.deleteTrip(id);
+
+  const endTrip = (id: string) =>
+    isFirebaseConfigured ? firestoreTrips.endTrip(id) : demo.endTrip(id);
 
   const addTransaction = (
     type: TripTransactionType,
@@ -209,6 +227,7 @@ export function TripsScreen({ onBack }: Props) {
   }
 
   if (selectedTrip) {
+    const ended = !!selectedTrip.endedAt;
     return (
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.content}>
@@ -217,11 +236,31 @@ export function TripsScreen({ onBack }: Props) {
               <Ionicons name="chevron-forward" size={24} color={colors.text} />
             </Pressable>
             <Text style={styles.header}>{selectedTrip.name}</Text>
+            {ended && (
+              <View style={styles.endedBadge}>
+                <Text style={styles.endedBadgeText}>הטיול הסתיים</Text>
+              </View>
+            )}
           </View>
+
+          <TripSummaryCard trip={selectedTrip} transactions={transactions} />
 
           <TripStatsCard trip={selectedTrip} transactions={transactions} />
 
-          <AddTripTransactionForm defaultCurrency={defaultCurrency} onAdd={addTransaction} />
+          {ended ? (
+            <Text style={styles.endedNotice}>
+              הטיול הסתיים — לא ניתן להוסיף תנועות חדשות, אך ניתן עדיין לצפות ולערוך את הקיימות.
+            </Text>
+          ) : (
+            <>
+              <Pressable style={styles.endTripButton} onPress={() => setConfirmingEndTrip(true)}>
+                <Ionicons name="flag-outline" size={18} color={colors.text} />
+                <Text style={styles.endTripButtonText}>סיים טיול</Text>
+              </Pressable>
+
+              <AddTripTransactionForm defaultCurrency={defaultCurrency} onAdd={addTransaction} />
+            </>
+          )}
 
           <TripTransactionList
             transactions={transactions}
@@ -234,6 +273,18 @@ export function TripsScreen({ onBack }: Props) {
           transaction={editingTransaction}
           onClose={() => setEditingTransaction(null)}
           onSave={updateTransaction}
+        />
+
+        <ConfirmDialog
+          visible={confirmingEndTrip}
+          title="סיום טיול"
+          message="לסיים את הטיול? יוצג סיכום סופי ולא ניתן יהיה להוסיף תנועות חדשות."
+          confirmLabel="סיים טיול"
+          onCancel={() => setConfirmingEndTrip(false)}
+          onConfirm={() => {
+            setConfirmingEndTrip(false);
+            endTrip(selectedTrip.id);
+          }}
         />
       </View>
     );
@@ -357,10 +408,47 @@ function getStyles(colors: ThemeColors) {
       color: colors.text,
       textAlign: 'right',
       letterSpacing: 0.2,
+      flexShrink: 1,
     },
     backButton: {
       borderRadius: 10,
       padding: 4,
+    },
+    endedBadge: {
+      backgroundColor: colors.chipBackground,
+      borderRadius: 20,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    endedBadgeText: {
+      color: colors.subtext,
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    endedNotice: {
+      color: colors.subtext,
+      fontSize: 12,
+      textAlign: 'right',
+      marginBottom: 20,
+    },
+    endTripButton: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderRadius: 14,
+      paddingVertical: 13,
+      marginBottom: 20,
+      backgroundColor: colors.chipBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    endTripButtonText: {
+      color: colors.text,
+      fontWeight: '700',
+      fontSize: 14,
     },
     demoBadge: {
       backgroundColor: colors.warning,

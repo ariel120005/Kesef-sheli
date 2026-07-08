@@ -35,6 +35,11 @@ export function TripCard({ trip, transactions, onPress, onDelete }: Props) {
           <Ionicons name="trash-outline" size={16} color={colors.danger} />
         </Pressable>
         <Text style={styles.name}>{trip.name}</Text>
+        {!!trip.endedAt && (
+          <View style={styles.endedBadge}>
+            <Text style={styles.endedBadgeText}>הסתיים</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.barTrack}>
@@ -70,6 +75,7 @@ function getStyles(colors: ThemeColors) {
       marginBottom: 12,
     },
     name: {
+      flexShrink: 1,
       fontSize: 16,
       fontWeight: '700',
       color: colors.text,
@@ -79,6 +85,19 @@ function getStyles(colors: ThemeColors) {
       borderRadius: 8,
       padding: 4,
       backgroundColor: colors.deleteBackground,
+    },
+    endedBadge: {
+      backgroundColor: colors.chipBackground,
+      borderRadius: 20,
+      paddingVertical: 3,
+      paddingHorizontal: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    endedBadgeText: {
+      color: colors.subtext,
+      fontSize: 10,
+      fontWeight: '700',
     },
     barTrack: {
       height: 10,

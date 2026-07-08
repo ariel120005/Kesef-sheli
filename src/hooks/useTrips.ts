@@ -7,6 +7,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
@@ -67,5 +68,13 @@ export function useTrips(uid: string | null) {
     [uid]
   );
 
-  return { trips, loaded, addTrip, deleteTrip };
+  const endTrip = useCallback(
+    async (id: string) => {
+      if (!uid || !db) return;
+      await updateDoc(doc(db, 'users', uid, 'trips', id), { endedAt: new Date().toISOString() });
+    },
+    [uid]
+  );
+
+  return { trips, loaded, addTrip, deleteTrip, endTrip };
 }

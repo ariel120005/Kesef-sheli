@@ -110,6 +110,10 @@ export interface Trip {
   name: string;
   budget: number;
   createdAt: string; // ISO string
+  // Set when the trip is marked finished via "סיים טיול" — once set, the trip summary (final
+  // gross/net spend, days, daily average) becomes permanently viewable, and stays that way even
+  // after the trip is closed (it never reverts to unset).
+  endedAt?: string | null;
 }
 
 export type TripTransactionType = 'expense' | 'reimbursement' | 'fee';
