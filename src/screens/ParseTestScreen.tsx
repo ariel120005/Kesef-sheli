@@ -7,8 +7,6 @@ import { isFirebaseConfigured } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useCategories } from '../hooks/useCategories';
 import { useDemoBudgetData } from '../hooks/useDemoBudgetData';
-import { useNotificationSources } from '../hooks/useNotificationSources';
-import { isNotificationSourceApproved } from '../notificationFilter';
 import { ThemeColors, useTheme } from '../theme';
 import { formatCurrency } from '../utils';
 
@@ -25,39 +23,28 @@ const EXAMPLES = [
   'היי, ביקשת שנעדכן אותך על עסקאות בסכום גבוה: היום 06/07 בית עסקKING MEAT חייב את כרטיסך בסך155.0 שח כדאי לעקוב אחר החיובים כאן:',
 ];
 
-const BLOCKED_EXAMPLE_PACKAGE = 'com.example.untrusted';
-
-type CheckResult = 'notChecked' | 'blocked' | ParsedBankNotification | null;
-
 export function ParseTestScreen({ onBack }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const { user } = useAuth();
   const uid = isFirebaseConfigured ? user?.uid ?? null : null;
   const firestoreCategories = useCategories(uid);
-  const firestoreSources = useNotificationSources(uid);
   const demo = useDemoBudgetData();
   const categories = isFirebaseConfigured ? firestoreCategories.categories : demo.categories;
-  const sources = isFirebaseConfigured ? firestoreSources.sources : demo.notificationSources;
-  const enabledPackageNames = sources.filter((s) => s.enabled).map((s) => s.packageName);
 
-  const [packageName, setPackageName] = useState('');
   const [text, setText] = useState('');
-  const [result, setResult] = useState<CheckResult>('notChecked');
+  const [result, setResult] = useState<ParsedBankNotification | null | 'notChecked'>('notChecked');
 
-  // Mirrors exactly what the (future) native listener must do first, before anything else: a
-  // notification from a source that isn't on the approved list is discarded right here — the
-  // text below is never passed to parseBankNotification at all in that case.
+  // This screen tests the text-parsing logic only — it always parses whatever is pasted below,
+  // with no source-app filtering. isNotificationSourceApproved (src/notificationFilter.ts) gates
+  // the real (future) NotificationListenerService, which has no equivalent here since there's no
+  // "sending app" in a manually-pasted test string, only text typed in by hand.
   const handleCheck = () => {
-    if (!isNotificationSourceApproved(packageName.trim(), enabledPackageNames)) {
-      setResult('blocked');
-      return;
-    }
     setResult(parseBankNotification(text));
   };
 
   const guessedCategory =
-    result && result !== 'notChecked' && result !== 'blocked' && result.kind === 'charge'
+    result && result !== 'notChecked' && result.kind === 'charge'
       ? guessCategoryFromMerchant(result.merchant, categories)
       : null;
 
@@ -75,37 +62,6 @@ export function ParseTestScreen({ onBack }: Props) {
           כלי פיתוח זמני: הדביקו כאן טקסט של התראה אמיתית מאפליקציית הבנק/כרטיס האשראי שלכם כדי
           לבדוק מה המערכת מזהה ממנה — לפני שיש הרשאה אמיתית לקרוא התראות במכשיר.
         </Text>
-
-        <Text style={styles.fieldLabel}>שם החבילה של האפליקציה שממנה "התקבלה" ההתראה (סימולציה)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="לדוגמה: com.familypay.bit"
-          placeholderTextColor={colors.subtext}
-          value={packageName}
-          onChangeText={setPackageName}
-          textAlign="right"
-          autoCapitalize="none"
-        />
-
-        <View style={styles.examplesWrap}>
-          {sources
-            .filter((s) => s.enabled)
-            .map((s) => (
-              <Pressable
-                key={s.id}
-                style={styles.packageChip}
-                onPress={() => setPackageName(s.packageName)}
-              >
-                <Text style={styles.packageChipText}>✓ {s.label} (מאושר)</Text>
-              </Pressable>
-            ))}
-          <Pressable
-            style={[styles.packageChip, styles.packageChipBlocked]}
-            onPress={() => setPackageName(BLOCKED_EXAMPLE_PACKAGE)}
-          >
-            <Text style={styles.packageChipBlockedText}>אפליקציה לא מאושרת (לדוגמה)</Text>
-          </Pressable>
-        </View>
 
         <View style={styles.examplesWrap}>
           {EXAMPLES.map((example, index) => (
@@ -134,12 +90,7 @@ export function ParseTestScreen({ onBack }: Props) {
 
         {result !== 'notChecked' && (
           <View style={[styles.resultCard, SHADOW]}>
-            {result === 'blocked' ? (
-              <Text style={styles.resultFail}>
-                🚫 נחסם: "{packageName.trim()}" אינה ברשימת האפליקציות המאושרות (הגדרות ← אילו
-                אפליקציות לעקוב אחריהן). תוכן ההתראה לא נשמר, לא נרשם ולא עובד בשום צורה.
-              </Text>
-            ) : result === null ? (
+            {result === null ? (
               <Text style={styles.resultFail}>לא זוהתה התראת בנק מוכרת בטקסט הזה</Text>
             ) : (
               <>
@@ -204,43 +155,6 @@ function getStyles(colors: ThemeColors) {
       textAlign: 'right',
       lineHeight: 19,
       marginBottom: 18,
-    },
-    fieldLabel: {
-      color: colors.subtext,
-      fontSize: 12,
-      textAlign: 'right',
-      marginBottom: 8,
-    },
-    input: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.chipBackground,
-      borderRadius: 14,
-      padding: 14,
-      fontSize: 14,
-      color: colors.text,
-      marginBottom: 12,
-    },
-    packageChip: {
-      backgroundColor: colors.chipBackground,
-      borderWidth: 1,
-      borderColor: colors.turquoise,
-      borderRadius: 14,
-      paddingVertical: 7,
-      paddingHorizontal: 12,
-    },
-    packageChipText: {
-      color: colors.turquoise,
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    packageChipBlocked: {
-      borderColor: colors.danger,
-    },
-    packageChipBlockedText: {
-      color: colors.danger,
-      fontSize: 12,
-      fontWeight: '600',
     },
     examplesWrap: {
       gap: 8,

@@ -213,10 +213,10 @@ stack (`closeAllOverlays`).
   - **בדיקת פענוח (parse-test)** — `src/screens/ParseTestScreen.tsx`, a temporary dev-only screen
     reached via Settings, for calibrating `src/bankNotificationParser.ts` against real
     notification text before there's any native notification-reading permission at all (see "MVP
-    scope" and "Notes for future work"). Also has a "package name" field simulating which app a
-    notification came from, checked against `isNotificationSourceApproved` before parsing is even
-    attempted — picking an unapproved source blocks the check entirely, proving the same gate the
-    real native listener will use.
+    scope" and "Notes for future work"). Always parses whatever is pasted, with no source-app
+    filtering — it's a pure text-parsing test tool, deliberately separate from the (future) native
+    listener's package-name allowlist below, since a manually-pasted test string has no "sending
+    app" for that allowlist to apply to in the first place.
   - **אילו אפליקציות לעקוב אחריהן (notification sources)** — `src/screens/
     NotificationSourcesScreen.tsx`, the explicit per-app allowlist for the (future) notification
     listener (see "MVP scope" and "Notes for future work"). Every source — the one Bit preset, or
@@ -315,12 +315,11 @@ module-level constant), so it re-renders correctly on theme toggle.
   documented publicly, so the patterns are a best-effort guess, tuned against real notification
   text pasted into **בדיקת פענוח** in Settings (`src/screens/ParseTestScreen.tsx`, a temporary
   dev-only screen) — paste real notification text and see exactly what gets extracted, to
-  calibrate further against your own bank's real format. This screen also simulates the
-  source-app allowlist check (see below): a "package name" field lets you pick one of your
-  approved sources or a deliberately-unapproved example, and checking blocks the parse entirely
-  (no text is even looked at) if that source isn't approved — the same `isNotificationSourceApproved`
-  gate the real native listener will eventually use. This is parsing logic only — see "Notes for
-  future work" for what's still needed to actually read notifications on-device.
+  calibrate further against your own bank's real format. This screen intentionally has no
+  source-app filtering (see below) — it's a pure parsing-logic test tool, unrelated to which
+  apps are approved to send notifications, since a manually-pasted string has no "sending app" at
+  all. This is parsing logic only — see "Notes for future work" for what's still needed to
+  actually read notifications on-device.
 - Bank-notification source allowlist: Android's `NotificationListenerService` permission is
   all-or-nothing at the OS level — once granted, the (future) native listener technically
   receives every notification posted on the device. **אילו אפליקציות לעקוב אחריהן** in Settings
@@ -391,8 +390,8 @@ src/screens/SettingsScreen.tsx       theme toggle, default currency, month-start
                                       reset data, bank-notification parse-test nav, notification-sources nav,
                                       sign out, delete account (overlay screen)
 src/screens/CategoriesScreen.tsx     category list (color/name/edit/delete) + add row (overlay screen)
-src/screens/ParseTestScreen.tsx      dev-only screen: paste bank notification text + simulate a source package
-                                      name, see the parsed result or the source-filter block (overlay screen)
+src/screens/ParseTestScreen.tsx      dev-only screen: paste bank notification text, see the parsed result
+                                      (no source-app filtering — pure parsing test tool; overlay screen)
 src/screens/NotificationSourcesScreen.tsx  per-app allowlist for the (future) notification listener — presets +
                                       manual add, everything off by default (overlay screen)
 src/screens/MapScreen.tsx / .web.tsx world map: static react-native-webview embed (native) vs
