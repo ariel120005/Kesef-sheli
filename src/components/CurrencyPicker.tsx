@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SHADOW } from '../constants';
 import { CURRENCIES } from '../currency';
 import { ThemeColors, useTheme } from '../theme';
@@ -35,23 +35,25 @@ export function CurrencyPicker({ value, onChange }: Props) {
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable style={[styles.menu, SHADOW]} onPress={() => {}}>
-            {OPTIONS.map((option, index) => {
-              const isSelected = option.code === value;
-              return (
-                <Pressable
-                  key={option.code}
-                  onPress={() => {
-                    onChange(option.code);
-                    setOpen(false);
-                  }}
-                  style={[styles.menuItem, index < OPTIONS.length - 1 && styles.menuItemBorder]}
-                >
-                  <Text style={[styles.menuItemText, isSelected && styles.menuItemTextSelected]}>
-                    {option.symbol} {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+            <ScrollView>
+              {OPTIONS.map((option, index) => {
+                const isSelected = option.code === value;
+                return (
+                  <Pressable
+                    key={option.code}
+                    onPress={() => {
+                      onChange(option.code);
+                      setOpen(false);
+                    }}
+                    style={[styles.menuItem, index < OPTIONS.length - 1 && styles.menuItemBorder]}
+                  >
+                    <Text style={[styles.menuItemText, isSelected && styles.menuItemTextSelected]}>
+                      {option.symbol} {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -89,6 +91,7 @@ function getStyles(colors: ThemeColors) {
     },
     menu: {
       minWidth: 180,
+      maxHeight: 360,
       backgroundColor: colors.card,
       borderRadius: 16,
       borderWidth: 1,
