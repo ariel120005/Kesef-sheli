@@ -29,7 +29,7 @@ export interface Expense {
 
 export type TabKey = 'map' | 'home' | 'insights';
 
-export type OverlayScreen = 'settings' | 'account' | 'trips' | 'savingsGoal';
+export type OverlayScreen = 'profileMenu' | 'settings' | 'account' | 'trips' | 'savingsGoal';
 
 export interface Trip {
   id: string;

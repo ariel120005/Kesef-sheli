@@ -2,9 +2,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GRADIENTS, SHADOW } from '../constants';
-import { CURRENCIES, formatForeignAmount, getExchangeRateToILS } from '../currency';
+import { formatForeignAmount, getExchangeRateToILS } from '../currency';
 import { ThemeColors, useTheme } from '../theme';
 import { Currency, TripTransaction, TripTransactionType } from '../types';
+import { CurrencyPicker } from './CurrencyPicker';
 
 interface Props {
   transaction: TripTransaction | null;
@@ -124,37 +125,7 @@ export function EditTripTransactionModal({ transaction, onClose, onSave }: Props
             textAlign="right"
           />
 
-          <View style={styles.currencyWrap}>
-            <Pressable
-              onPress={() => setCurrency('ILS')}
-              style={[styles.currencyChip, currency === 'ILS' && styles.currencyChipSelected]}
-            >
-              <Text
-                style={[
-                  styles.currencyChipText,
-                  currency === 'ILS' && styles.currencyChipTextSelected,
-                ]}
-              >
-                ₪ שקל
-              </Text>
-            </Pressable>
-            {CURRENCIES.map((c) => {
-              const selected = currency === c.code;
-              return (
-                <Pressable
-                  key={c.code}
-                  onPress={() => setCurrency(c.code)}
-                  style={[styles.currencyChip, selected && styles.currencyChipSelected]}
-                >
-                  <Text
-                    style={[styles.currencyChipText, selected && styles.currencyChipTextSelected]}
-                  >
-                    {c.symbol} {c.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <CurrencyPicker value={currency} onChange={setCurrency} />
 
           {currency !== 'ILS' && (
             <View style={styles.conversionRow}>
@@ -259,32 +230,6 @@ function getStyles(colors: ThemeColors) {
       color: '#0A0A0F',
       fontWeight: '700',
       fontSize: 13,
-    },
-    currencyWrap: {
-      flexDirection: 'row-reverse',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginBottom: 8,
-    },
-    currencyChip: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.chipBackground,
-      borderRadius: 20,
-      paddingVertical: 7,
-      paddingHorizontal: 14,
-    },
-    currencyChipSelected: {
-      borderWidth: 0,
-      backgroundColor: colors.turquoise,
-    },
-    currencyChipText: {
-      color: colors.text,
-      fontSize: 13,
-    },
-    currencyChipTextSelected: {
-      color: '#0A0A0F',
-      fontWeight: '700',
     },
     conversionRow: {
       alignItems: 'flex-end',

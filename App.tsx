@@ -8,6 +8,7 @@ import { DemoBudgetDataProvider } from './src/hooks/useDemoBudgetData';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { InsightsScreen } from './src/screens/InsightsScreen';
 import { MapScreen } from './src/screens/MapScreen';
+import { ProfileMenuScreen } from './src/screens/ProfileMenuScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SavingsGoalScreen } from './src/screens/SavingsGoalScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -21,6 +22,10 @@ function AppContent() {
   const styles = getStyles(colors);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [overlayScreen, setOverlayScreen] = useState<OverlayScreen | null>(null);
+  // Which screen "back" should return to for the screens reachable from the profile menu
+  // (settings/account/trips/savingsGoal) — the profile menu itself if that's how we got here,
+  // or null (the active tab) when opened directly, e.g. via the Insights shortcut cards.
+  const [overlayBack, setOverlayBack] = useState<OverlayScreen | null>(null);
 
   if (initializing) {
     return (
@@ -33,7 +38,21 @@ function AppContent() {
     );
   }
 
-  const closeOverlay = () => setOverlayScreen(null);
+  const closeOverlay = () => {
+    setOverlayScreen(null);
+    setOverlayBack(null);
+  };
+  // Opened directly (Insights shortcut cards, TopBar profile icon): back returns to the tab.
+  const openOverlay = (screen: OverlayScreen) => {
+    setOverlayBack(null);
+    setOverlayScreen(screen);
+  };
+  // Opened from within the profile menu: back returns to the profile menu, not the tab.
+  const openFromProfileMenu = (screen: OverlayScreen) => {
+    setOverlayBack('profileMenu');
+    setOverlayScreen(screen);
+  };
+  const backFromOverlay = () => setOverlayScreen(overlayBack);
 
   return (
     <SafeAreaProvider>
@@ -41,21 +60,28 @@ function AppContent() {
         <StatusBar barStyle={colors.statusBarStyle} />
 
         {overlayScreen === null && (
-          <TopBar onNavigate={setOverlayScreen} floating={activeTab === 'map'} />
+          <TopBar
+            onOpenProfileMenu={() => openOverlay('profileMenu')}
+            showSearch={activeTab === 'map'}
+            floating={activeTab === 'map'}
+          />
         )}
 
         {overlayScreen === null && activeTab === 'home' && <HomeScreen />}
         {overlayScreen === null && activeTab === 'insights' && (
           <InsightsScreen
-            onOpenTrips={() => setOverlayScreen('trips')}
-            onOpenSavingsGoal={() => setOverlayScreen('savingsGoal')}
+            onOpenTrips={() => openOverlay('trips')}
+            onOpenSavingsGoal={() => openOverlay('savingsGoal')}
           />
         )}
         {overlayScreen === null && activeTab === 'map' && <MapScreen />}
-        {overlayScreen === 'settings' && <SettingsScreen onBack={closeOverlay} />}
-        {overlayScreen === 'account' && <ProfileScreen onBack={closeOverlay} />}
-        {overlayScreen === 'trips' && <TripsScreen onBack={closeOverlay} />}
-        {overlayScreen === 'savingsGoal' && <SavingsGoalScreen onBack={closeOverlay} />}
+        {overlayScreen === 'profileMenu' && (
+          <ProfileMenuScreen onBack={closeOverlay} onNavigate={openFromProfileMenu} />
+        )}
+        {overlayScreen === 'settings' && <SettingsScreen onBack={backFromOverlay} />}
+        {overlayScreen === 'account' && <ProfileScreen onBack={backFromOverlay} />}
+        {overlayScreen === 'trips' && <TripsScreen onBack={backFromOverlay} />}
+        {overlayScreen === 'savingsGoal' && <SavingsGoalScreen onBack={backFromOverlay} />}
       </SafeAreaView>
 
       <SafeAreaView style={styles.tabBarSafeArea} edges={['bottom', 'left', 'right']}>
