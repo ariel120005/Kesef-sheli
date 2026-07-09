@@ -11,7 +11,6 @@ import { TripStatsCard } from '../components/TripStatsCard';
 import { TripSummaryCard } from '../components/TripSummaryCard';
 import { TripTransactionList } from '../components/TripTransactionList';
 import { GRADIENTS } from '../constants';
-import { DEMO_TRIPS, DEMO_TRIP_TRANSACTIONS } from '../demoData';
 import { isFirebaseConfigured } from '../firebase';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useAuth } from '../hooks/useAuth';
@@ -20,86 +19,6 @@ import { useTripTransactions } from '../hooks/useTripTransactions';
 import { useTrips } from '../hooks/useTrips';
 import { ThemeColors, useTheme } from '../theme';
 import { Currency, Trip, TripTransaction, TripTransactionType } from '../types';
-
-function useDemoTripsData() {
-  const [trips, setTrips] = useState<Trip[]>(DEMO_TRIPS);
-  const [transactionsByTrip, setTransactionsByTrip] =
-    useState<Record<string, TripTransaction[]>>(DEMO_TRIP_TRANSACTIONS);
-
-  const addTrip = (name: string, budget: number) => {
-    const id = `demo-trip-${Date.now()}`;
-    setTrips((prev) => [{ id, name, budget, createdAt: new Date().toISOString() }, ...prev]);
-    setTransactionsByTrip((prev) => ({ ...prev, [id]: [] }));
-  };
-
-  const deleteTrip = (id: string) => {
-    setTrips((prev) => prev.filter((t) => t.id !== id));
-    setTransactionsByTrip((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-  };
-
-  const endTrip = (id: string) => {
-    setTrips((prev) => prev.map((t) => (t.id === id ? { ...t, endedAt: new Date().toISOString() } : t)));
-  };
-
-  const addTransaction = (
-    tripId: string,
-    type: TripTransactionType,
-    amount: number,
-    note: string,
-    originalAmount: number | null = null,
-    originalCurrency: Currency | null = null
-  ) => {
-    const tx: TripTransaction = {
-      id: `demo-tx-${Date.now()}`,
-      type,
-      amount,
-      note,
-      date: new Date().toISOString(),
-      originalAmount,
-      originalCurrency,
-    };
-    setTransactionsByTrip((prev) => ({ ...prev, [tripId]: [tx, ...(prev[tripId] ?? [])] }));
-  };
-
-  const updateTransaction = (
-    tripId: string,
-    id: string,
-    type: TripTransactionType,
-    amount: number,
-    note: string,
-    originalAmount: number | null = null,
-    originalCurrency: Currency | null = null
-  ) => {
-    setTransactionsByTrip((prev) => ({
-      ...prev,
-      [tripId]: (prev[tripId] ?? []).map((t) =>
-        t.id === id ? { ...t, type, amount, note, originalAmount, originalCurrency } : t
-      ),
-    }));
-  };
-
-  const deleteTransaction = (tripId: string, id: string) => {
-    setTransactionsByTrip((prev) => ({
-      ...prev,
-      [tripId]: (prev[tripId] ?? []).filter((t) => t.id !== id),
-    }));
-  };
-
-  return {
-    trips,
-    transactionsByTrip,
-    addTrip,
-    deleteTrip,
-    endTrip,
-    addTransaction,
-    updateTransaction,
-    deleteTransaction,
-  };
-}
 
 // Each trip in the list needs its own live transactions to compute gross/net, so the
 // Firestore-backed list wraps every trip in its own component instance running its own
@@ -131,10 +50,9 @@ export function TripsScreen({ onBack }: Props) {
 
   const firestoreTrips = useTrips(uid);
   const firestoreSettings = useAppSettings(uid);
-  const demo = useDemoTripsData();
-  const demoSettings = useDemoBudgetData();
+  const demo = useDemoBudgetData();
 
-  const defaultCurrency = isFirebaseConfigured ? firestoreSettings.defaultCurrency : demoSettings.defaultCurrency;
+  const defaultCurrency = isFirebaseConfigured ? firestoreSettings.defaultCurrency : demo.defaultCurrency;
 
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -174,7 +92,7 @@ export function TripsScreen({ onBack }: Props) {
     if (isFirebaseConfigured) {
       firestoreTripTransactions.addTransaction(type, amount, note, originalAmount, originalCurrency);
     } else {
-      demo.addTransaction(selectedTripId, type, amount, note, originalAmount, originalCurrency);
+      demo.addTripTransaction(selectedTripId, type, amount, note, originalAmount, originalCurrency);
     }
   };
 
@@ -190,14 +108,14 @@ export function TripsScreen({ onBack }: Props) {
     if (isFirebaseConfigured) {
       firestoreTripTransactions.updateTransaction(id, type, amount, note, originalAmount, originalCurrency);
     } else {
-      demo.updateTransaction(selectedTripId, id, type, amount, note, originalAmount, originalCurrency);
+      demo.updateTripTransaction(selectedTripId, id, type, amount, note, originalAmount, originalCurrency);
     }
   };
 
   const deleteTransaction = (id: string) => {
     if (!selectedTripId) return;
     if (isFirebaseConfigured) firestoreTripTransactions.deleteTransaction(id);
-    else demo.deleteTransaction(selectedTripId, id);
+    else demo.deleteTripTransaction(selectedTripId, id);
   };
 
   if (isFirebaseConfigured && !user) {

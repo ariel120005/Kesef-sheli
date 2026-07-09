@@ -82,8 +82,12 @@ and the UI shows a "Firebase לא מוגדר" message instead of crashing.
   (`DEFAULT_CATEGORIES` in `src/constants.ts`) the first time a `categories` snapshot for that
   account comes back empty and `categoriesInitialized` isn't set yet, so deleting down to zero
   categories afterwards doesn't silently reseed them.
-- `users/{uid}/trips/{tripId}` — one document per trip (`name`, `budget`, `createdAt`), a budget
-  kept separate from the monthly budget above.
+- `users/{uid}/trips/{tripId}` — one document per trip (`name`, `budget`, `createdAt`, optional
+  `endedAt`), a budget kept separate from the monthly budget above. `endedAt` is set once via
+  "סיים טיול" (see the Trips bullet under "App structure & navigation" below) and never cleared
+  afterwards — it's what makes a trip's summary (final gross/net/days/daily-average) permanently
+  viewable and is also how the bank-notification auto-detection routing (see "Bank-notification
+  auto-detection" in MVP scope below) decides whether a trip still counts as open.
 - `users/{uid}/trips/{tripId}/transactions/{autoId}` — one document per trip transaction
   (`type`: `'expense' | 'reimbursement' | 'fee'`, `amount`, `note`, `date`, optional
   `autoDetected`, optional `originalAmount`/`originalCurrency`). `reimbursement` transactions
@@ -199,7 +203,19 @@ stack (`closeAllOverlays`).
     its own budget, separate from the monthly budget) and a detail view per trip showing gross
     spend, total reimbursed, net spend, and budget remaining (`TripStatsCard.tsx`), plus a form to
     add expense/reimbursement/fee transactions and a list to edit/delete them. Same auth-gated /
-    demo-mode split as Home, with its own local-state mirror hook when Firebase isn't configured.
+    demo-mode split as Home; in demo mode its trips/transactions state lives in the shared
+    `DemoBudgetDataProvider` (see below) rather than a screen-local hook, so other screens — the
+    bank-notification parse-test tool's auto-routing — can see the same trips. A trip can be
+    marked finished via a **"סיים טיול"** button (with a confirm dialog), which sets the trip's
+    `endedAt` and permanently reveals a `TripSummaryCard.tsx` (gross spend, total reimbursed,
+    final net spend, trip length in days, and net spend per day) whenever the trip is reopened
+    afterwards — `endedAt` is never cleared. Once ended, the add-transaction form is hidden (no
+    new transactions), but the existing transaction list stays viewable/editable, and both the
+    trip list card and the detail header show an "הסתיים" badge. Multiple currencies within the
+    same trip are already supported without any special handling — every transaction stores its
+    own `originalAmount`/`originalCurrency` independent of the others (see "Foreign-currency
+    entry" in MVP scope below), and the trip's gross/net/summary totals are always summed from the
+    ILS-converted `amount` field regardless of what currency each transaction was entered in.
   - **יעד חיסכון (Savings Goal)** — `src/screens/SavingsGoalScreen.tsx`, the full `SavingsGoalCard`
     (moved out of Home) plus its edit modal.
   - **קטגוריות (Categories)** — `src/screens/CategoriesScreen.tsx`, reached via Settings' "ניהול
@@ -216,20 +232,34 @@ stack (`closeAllOverlays`).
     scope" and "Notes for future work"). Always parses whatever is pasted, with no source-app
     filtering — it's a pure text-parsing test tool, deliberately separate from the (future) native
     listener's package-name allowlist below, since a manually-pasted test string has no "sending
-    app" for that allowlist to apply to in the first place.
+    app" for that allowlist to apply to in the first place. Beyond just previewing what would be
+    extracted, a **"צור רשומה בפועל (מצב הדגמה)"** button (demo mode only — hidden when Firebase
+    is configured, since this dev tool shouldn't write real accounts' data) actually creates the
+    record, exercising the same routing the future native listener will use: if any trip is
+    currently open (no `endedAt` set — the most recently created one if more than one happens to
+    be open), a `charge` becomes an `expense` transaction on that trip and a `credit` becomes a
+    `reimbursement` transaction on it; with no open trip, a `charge` becomes a regular general
+    expense (category guessed the same way as the preview) and a `credit` is **not** created at
+    all, since reimbursements are a trip-only concept with no equivalent among general expenses —
+    a banner explains why nothing was created in that case. Every other outcome shows a banner
+    naming the exact amount/merchant and where it landed (which trip, or "הוצאות כלליות"), so this
+    screen doubles as a way to test the trip-vs-general-expenses auto-routing logic itself, not
+    just the text parsing.
   - **אילו אפליקציות לעקוב אחריהן (notification sources)** — `src/screens/
     NotificationSourcesScreen.tsx`, the explicit per-app allowlist for the (future) notification
     listener (see "MVP scope" and "Notes for future work"). Every source — the one Bit preset, or
     any manually-added app — defaults to disabled; the screen's own text explains why (Android's
     listener permission is all-or-nothing, this allowlist is what narrows it down in practice).
 
-Home, Insights, Settings, Categories, and the Savings Goal screen all need the same budget/
-expenses/savings-goal/categories/default-currency/month-start-day/notification-sources numbers to
-stay in sync in demo mode now that they're separate screens, so that demo state lives in one shared
-`DemoBudgetDataProvider` (`src/hooks/useDemoBudgetData.tsx`, wrapping the whole app in `App.tsx`)
-instead of being duplicated per screen — real Firebase mode doesn't need this since every screen's
-Firestore hook (`useCategories`, `useAppSettings`, etc.) already reads/writes the same underlying
-document/subcollection.
+Home, Insights, Settings, Categories, Trips, and the Savings Goal screen all need the same budget/
+expenses/savings-goal/categories/default-currency/month-start-day/notification-sources/trips
+numbers to stay in sync in demo mode now that they're separate screens, so that demo state lives
+in one shared `DemoBudgetDataProvider` (`src/hooks/useDemoBudgetData.tsx`, wrapping the whole app
+in `App.tsx`) instead of being duplicated per screen — real Firebase mode doesn't need this since
+every screen's Firestore hook (`useCategories`, `useAppSettings`, `useTrips`, etc.) already
+reads/writes the same underlying document/subcollection. Trips joined this shared provider later
+than the rest specifically so the parse-test screen's auto-creation feature (see the Settings
+screen bullet above) could see the same open/closed trip state as the Trips screen itself.
 
 ## Theming
 
@@ -370,8 +400,8 @@ src/hooks/useSavingsGoal.ts          Firestore-backed savings goal (onSnapshot, 
 src/hooks/useCategories.ts           Firestore-backed categories (onSnapshot, add/update/delete, lazy default-seeding)
 src/hooks/useAppSettings.ts          Firestore-backed defaultCurrency + monthStartDay (onSnapshot, update)
 src/hooks/useDemoBudgetData.tsx      DemoBudgetDataProvider/useDemoBudgetData — shared demo expenses/budget/goal/
-                                      categories/defaultCurrency/monthStartDay state
-src/hooks/useTrips.ts                Firestore-backed trips (onSnapshot, add, delete)
+                                      categories/defaultCurrency/monthStartDay/trips state
+src/hooks/useTrips.ts                Firestore-backed trips (onSnapshot, add, delete, endTrip)
 src/hooks/useTripTransactions.ts     Firestore-backed transactions for one trip (onSnapshot, add, update, delete)
 src/insights.ts                      rule-based Hebrew insight generator (no LLM call), month-start-day aware
 src/recurring.ts                     finds which recurring expenses need this month's copy
@@ -390,7 +420,8 @@ src/screens/SettingsScreen.tsx       theme toggle, default currency, month-start
                                       reset data, bank-notification parse-test nav, notification-sources nav,
                                       sign out, delete account (overlay screen)
 src/screens/CategoriesScreen.tsx     category list (color/name/edit/delete) + add row (overlay screen)
-src/screens/ParseTestScreen.tsx      dev-only screen: paste bank notification text, see the parsed result
+src/screens/ParseTestScreen.tsx      dev-only screen: paste bank notification text, see the parsed result, and
+                                      (demo mode) actually create the routed expense/reimbursement record
                                       (no source-app filtering — pure parsing test tool; overlay screen)
 src/screens/NotificationSourcesScreen.tsx  per-app allowlist for the (future) notification listener — presets +
                                       manual add, everything off by default (overlay screen)
@@ -414,6 +445,8 @@ src/components/ConfirmDialog.tsx     custom confirm modal (Alert.alert is a no-o
 src/components/CreateTripModal.tsx   trip creation form (name + budget)
 src/components/TripCard.tsx          trip list-item summary (gross/net/budget bar)
 src/components/TripStatsCard.tsx     trip detail stats (gross, reimbursed, net, budget, remaining)
+src/components/TripSummaryCard.tsx   permanent post-trip summary (gross, reimbursed, net, days, daily average) —
+                                      renders once trip.endedAt is set, via "סיים טיול"
 src/components/AddTripTransactionForm.tsx  type chips (הוצאה/החזר/עמלה) + amount/currency/note + add
 src/components/TripTransactionList.tsx     trip transactions list, tap to edit, delete button
 src/components/EditTripTransactionModal.tsx edit an existing trip transaction's type/amount/currency/note

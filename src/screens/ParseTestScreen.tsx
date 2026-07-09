@@ -34,6 +34,7 @@ export function ParseTestScreen({ onBack }: Props) {
 
   const [text, setText] = useState('');
   const [result, setResult] = useState<ParsedBankNotification | null | 'notChecked'>('notChecked');
+  const [creationMessage, setCreationMessage] = useState<string | null>(null);
 
   // This screen tests the text-parsing logic only — it always parses whatever is pasted below,
   // with no source-app filtering. isNotificationSourceApproved (src/notificationFilter.ts) gates
@@ -41,12 +42,51 @@ export function ParseTestScreen({ onBack }: Props) {
   // "sending app" in a manually-pasted test string, only text typed in by hand.
   const handleCheck = () => {
     setResult(parseBankNotification(text));
+    setCreationMessage(null);
   };
 
   const guessedCategory =
     result && result !== 'notChecked' && result.kind === 'charge'
       ? guessCategoryFromMerchant(result.merchant, categories)
       : null;
+
+  // Not just a preview — actually writes the record (demo mode only), the same way the future
+  // native listener would: routed to whichever trip is currently open (not yet ended), or to the
+  // regular general expenses if no trip is open. Picks the most recently created open trip if
+  // more than one happens to be open at once.
+  const handleCreate = () => {
+    if (!result || result === 'notChecked' || isFirebaseConfigured) return;
+    const activeTrip = [...demo.trips]
+      .filter((t) => !t.endedAt)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    const merchantSuffix = result.merchant ? ` ${result.kind === 'charge' ? 'ב' : 'מ'}${result.merchant}` : '';
+
+    if (result.kind === 'charge') {
+      const category = guessedCategory ?? categories[0]?.name ?? 'אחר';
+      if (activeTrip) {
+        demo.addTripTransaction(activeTrip.id, 'expense', result.amount, result.merchant ?? '');
+        setCreationMessage(
+          `נוצרה הוצאה: ${formatCurrency(result.amount)}${merchantSuffix}, שויכה לטיול: ${activeTrip.name}`
+        );
+      } else {
+        demo.addExpense(result.amount, category, result.merchant ?? '', false);
+        setCreationMessage(
+          `נוצרה הוצאה: ${formatCurrency(result.amount)}${merchantSuffix}, קטגוריה ${category}, שויכה להוצאות כלליות`
+        );
+      }
+    } else {
+      if (activeTrip) {
+        demo.addTripTransaction(activeTrip.id, 'reimbursement', result.amount, result.merchant ?? '');
+        setCreationMessage(
+          `נוצר החזר: ${formatCurrency(result.amount)}${merchantSuffix}, שויך לטיול: ${activeTrip.name}`
+        );
+      } else {
+        setCreationMessage(
+          `זוהה זיכוי בסך ${formatCurrency(result.amount)}, אך אין טיול פעיל כרגע — זיכויים/החזרים נתמכים רק בתוך טיול, ולכן לא נוצרה רשומה`
+        );
+      }
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -103,8 +143,20 @@ export function ParseTestScreen({ onBack }: Props) {
                 {result.kind === 'charge' && (
                   <ResultRow label="קטגוריה מוצעת" value={guessedCategory ?? 'לא זוהתה — יש לבחור ידנית'} />
                 )}
+
+                {!isFirebaseConfigured && (
+                  <Pressable style={styles.createButton} onPress={handleCreate}>
+                    <Text style={styles.createButtonText}>צור רשומה בפועל (מצב הדגמה)</Text>
+                  </Pressable>
+                )}
               </>
             )}
+          </View>
+        )}
+
+        {creationMessage && (
+          <View style={[styles.creationBanner, SHADOW]}>
+            <Text style={styles.creationBannerText}>{creationMessage}</Text>
           </View>
         )}
       </ScrollView>
@@ -225,6 +277,34 @@ function getStyles(colors: ThemeColors) {
       color: colors.text,
       fontSize: 14,
       fontWeight: '700',
+    },
+    createButton: {
+      backgroundColor: colors.chipBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 14,
+      paddingVertical: 13,
+      alignItems: 'center',
+      marginTop: 14,
+    },
+    createButtonText: {
+      color: colors.turquoise,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    creationBanner: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.turquoise,
+      padding: 14,
+      marginTop: 16,
+    },
+    creationBannerText: {
+      color: colors.text,
+      fontSize: 13,
+      textAlign: 'right',
+      lineHeight: 19,
     },
   });
 }

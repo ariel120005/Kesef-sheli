@@ -1,8 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { DEMO_BUDGET, DEMO_CATEGORIES, DEMO_EXPENSES, DEMO_SAVINGS_GOAL } from '../demoData';
+import {
+  DEMO_BUDGET,
+  DEMO_CATEGORIES,
+  DEMO_EXPENSES,
+  DEMO_SAVINGS_GOAL,
+  DEMO_TRIPS,
+  DEMO_TRIP_TRANSACTIONS,
+} from '../demoData';
 import { PRESET_NOTIFICATION_SOURCES } from '../notificationFilter';
 import { findMissingRecurringInstances } from '../recurring';
-import { Category, CategoryDef, Currency, Expense, NotificationSource } from '../types';
+import { Category, CategoryDef, Currency, Expense, NotificationSource, Trip, TripTransaction, TripTransactionType } from '../types';
 
 const DEMO_NOTIFICATION_SOURCES: NotificationSource[] = PRESET_NOTIFICATION_SOURCES.map((preset, index) => ({
   id: `demo-preset-${index}`,
@@ -49,6 +56,29 @@ interface DemoBudgetData {
   addNotificationSource: (packageName: string, label: string) => void;
   removeNotificationSource: (id: string) => void;
   resetAllData: () => void;
+  trips: Trip[];
+  transactionsByTrip: Record<string, TripTransaction[]>;
+  addTrip: (name: string, budget: number) => void;
+  deleteTrip: (id: string) => void;
+  endTrip: (id: string) => void;
+  addTripTransaction: (
+    tripId: string,
+    type: TripTransactionType,
+    amount: number,
+    note: string,
+    originalAmount?: number | null,
+    originalCurrency?: Currency | null
+  ) => void;
+  updateTripTransaction: (
+    tripId: string,
+    id: string,
+    type: TripTransactionType,
+    amount: number,
+    note: string,
+    originalAmount?: number | null,
+    originalCurrency?: Currency | null
+  ) => void;
+  deleteTripTransaction: (tripId: string, id: string) => void;
 }
 
 const DemoBudgetDataContext = createContext<DemoBudgetData | undefined>(undefined);
@@ -66,6 +96,9 @@ export function DemoBudgetDataProvider({ children }: { children: React.ReactNode
   const [notificationSources, setNotificationSources] = useState<NotificationSource[]>(
     DEMO_NOTIFICATION_SOURCES
   );
+  const [trips, setTrips] = useState<Trip[]>(DEMO_TRIPS);
+  const [transactionsByTrip, setTransactionsByTrip] =
+    useState<Record<string, TripTransaction[]>>(DEMO_TRIP_TRANSACTIONS);
 
   const addExpense = (
     amount: number,
@@ -141,6 +174,69 @@ export function DemoBudgetDataProvider({ children }: { children: React.ReactNode
     setExpenses([]);
   };
 
+  const addTrip = (name: string, budget: number) => {
+    const id = `demo-trip-${Date.now()}`;
+    setTrips((prev) => [{ id, name, budget, createdAt: new Date().toISOString() }, ...prev]);
+    setTransactionsByTrip((prev) => ({ ...prev, [id]: [] }));
+  };
+
+  const deleteTrip = (id: string) => {
+    setTrips((prev) => prev.filter((t) => t.id !== id));
+    setTransactionsByTrip((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const endTrip = (id: string) => {
+    setTrips((prev) => prev.map((t) => (t.id === id ? { ...t, endedAt: new Date().toISOString() } : t)));
+  };
+
+  const addTripTransaction = (
+    tripId: string,
+    type: TripTransactionType,
+    amount: number,
+    note: string,
+    originalAmount: number | null = null,
+    originalCurrency: Currency | null = null
+  ) => {
+    const tx: TripTransaction = {
+      id: `demo-tx-${Date.now()}`,
+      type,
+      amount,
+      note,
+      date: new Date().toISOString(),
+      originalAmount,
+      originalCurrency,
+    };
+    setTransactionsByTrip((prev) => ({ ...prev, [tripId]: [tx, ...(prev[tripId] ?? [])] }));
+  };
+
+  const updateTripTransaction = (
+    tripId: string,
+    id: string,
+    type: TripTransactionType,
+    amount: number,
+    note: string,
+    originalAmount: number | null = null,
+    originalCurrency: Currency | null = null
+  ) => {
+    setTransactionsByTrip((prev) => ({
+      ...prev,
+      [tripId]: (prev[tripId] ?? []).map((t) =>
+        t.id === id ? { ...t, type, amount, note, originalAmount, originalCurrency } : t
+      ),
+    }));
+  };
+
+  const deleteTripTransaction = (tripId: string, id: string) => {
+    setTransactionsByTrip((prev) => ({
+      ...prev,
+      [tripId]: (prev[tripId] ?? []).filter((t) => t.id !== id),
+    }));
+  };
+
   // Auto-log this month's copy of any recurring demo expense, same as the real Firestore hook.
   useEffect(() => {
     const missing = findMissingRecurringInstances(expenses);
@@ -183,6 +279,14 @@ export function DemoBudgetDataProvider({ children }: { children: React.ReactNode
         addNotificationSource,
         removeNotificationSource,
         resetAllData,
+        trips,
+        transactionsByTrip,
+        addTrip,
+        deleteTrip,
+        endTrip,
+        addTripTransaction,
+        updateTripTransaction,
+        deleteTripTransaction,
       }}
     >
       {children}
