@@ -128,15 +128,20 @@ The search icon next to it is a no-op placeholder shown **only on the מפה tab
 `showSearch` prop) — it's the only tab with an actual search feature (its own always-visible
 search bar built into the map itself, see below); בית and תובנות don't show it.
 
-Settings, the profile menu, the account/sign-in screen, Trips, Savings Goal, and Categories are
-**not** tabs — they're `OverlayScreen`s (`src/types.ts`) pushed onto a real navigation stack
+Settings, the profile menu, the account/sign-in screen, Trips, Savings Goal, Categories, and About
+are **not** tabs — they're `OverlayScreen`s (`src/types.ts`) pushed onto a real navigation stack
 (`overlayStack: OverlayScreen[]` in `App.tsx`, not just a single "current screen" — needed because
-these can nest more than one level deep, e.g. profile menu → settings → categories) reached via
-the profile icon (or, for Trips/Savings Goal, also directly via a shortcut card on the Insights
-tab). Each screen's back button calls `popOverlay` (pop the stack one level), so it always returns
-to wherever it was actually opened from — the profile menu if opened from there, or the tab
-directly if opened via an Insights shortcut card. Switching bottom tabs clears the whole overlay
-stack (`closeAllOverlays`).
+these can nest more than one level deep, e.g. settings → categories) reached via the profile icon
+(or, for Trips/Savings Goal, also directly via a shortcut card on the Insights tab). Each screen's
+back button calls `popOverlay` (pop the stack one level), so it always returns to wherever it was
+actually opened from. Switching bottom tabs clears the whole overlay stack. On web, the device
+back button / swipe-back gesture is mirrored into browser history as a single "depth" number
+(non-home tab = +1, each stacked overlay = +1 more), giving real hierarchical parent-child back
+navigation — one step at a time up the tree, never straight to home and never a stale visit-order
+history — with the profile menu itself treated as a transient selector rather than a real tree
+node (picking a row from it swaps the menu out for the destination instead of stacking on top of
+it, so e.g. settings' parent is whichever tab the profile icon was opened from, not the profile
+menu). See the two `useEffect`s and `replaceOverlay` near the top of `AppContent` in `App.tsx`.
 
 - **בית (Home)** — the expense tracker's core loop: budget meter (view/edit the monthly budget),
   add-expense form, category breakdown, and the recent-expenses list. Requires being signed in;
@@ -250,6 +255,21 @@ stack (`closeAllOverlays`).
     listener (see "MVP scope" and "Notes for future work"). Every source — the one Bit preset, or
     any manually-added app — defaults to disabled; the screen's own text explains why (Android's
     listener permission is all-or-nothing, this allowlist is what narrows it down in practice).
+  - **אודות ועזרה (About)** — `src/screens/AboutScreen.tsx`, reached via Settings' "אודות ועזרה"
+    row (always shown, not gated behind `showAccountFeatures`/sign-in like the per-account rows
+    above it). Static reference content, no live data: the app name/logo (`AppLogo.tsx`, see
+    below) + a hardcoded version string (kept in sync with `package.json`/`app.json` by hand, no
+    build-time wiring), a one-line explanation of what each of the three bottom tabs does, and a
+    checklist of the app's main features — meant as a plain-English reminder of what's actually
+    built, for whenever the feature list has grown past what's easy to remember.
+
+A brief **splash screen** (`src/screens/SplashScreen.tsx`) shows on every app launch — a
+fixed-duration (`SPLASH_DURATION_MS` in `App.tsx`, currently 1.3s) gate in front of
+`ThemeProvider`/`AuthProvider`/`DemoBudgetDataProvider`, always on the dark surface regardless of
+the user's chosen theme (matches how a launch screen looks before the theme provider is even
+mounted). Shows `AppLogo.tsx` — a temporary placeholder logo (a wallet icon in the app's
+turquoise→purple brand gradient, `GRADIENTS.primary`) meant to be swapped for a real logo/image
+once one exists; every place that shows the logo goes through this one component.
 
 Home, Insights, Settings, Categories, Trips, and the Savings Goal screen all need the same budget/
 expenses/savings-goal/categories/default-currency/month-start-day/notification-sources/trips
@@ -383,7 +403,8 @@ icon/button with a label. This keeps behavior predictable when testing live in E
 ## Project structure
 
 ```
-App.tsx                              ThemeProvider + AuthProvider + DemoBudgetDataProvider + tab/overlay-stack switching
+App.tsx                              splash-screen gate + ThemeProvider + AuthProvider + DemoBudgetDataProvider +
+                                      tab/overlay-stack switching + browser-history back-navigation sync (web)
 src/types.ts                         Expense, Category, CategoryDef, TabKey, OverlayScreen, Trip, TripTransaction types
 src/constants.ts                     DEFAULT_CATEGORIES, CATEGORY_COLOR_SWATCHES, BRAND/DARK_COLORS/LIGHT_COLORS, gradients
 src/theme.tsx                        ThemeProvider/useTheme (dark/light, persisted)
@@ -425,6 +446,11 @@ src/screens/ParseTestScreen.tsx      dev-only screen: paste bank notification te
                                       (no source-app filtering — pure parsing test tool; overlay screen)
 src/screens/NotificationSourcesScreen.tsx  per-app allowlist for the (future) notification listener — presets +
                                       manual add, everything off by default (overlay screen)
+src/screens/AboutScreen.tsx          static app name/version/logo, per-tab explanations, feature checklist
+                                      (overlay screen, reached via Settings)
+src/screens/SplashScreen.tsx         brief fixed-duration launch screen — logo + app name on the dark surface
+src/components/AppLogo.tsx           temporary placeholder logo (gradient-badged wallet icon), swap for a real
+                                      logo/image later — every place that shows the logo goes through here
 src/screens/MapScreen.tsx / .web.tsx world map: static react-native-webview embed (native) vs
                                       real MapLibre GL map + Nominatim place search + expense pins (web)
 src/components/TopBar.tsx            profile icon (opens the profile menu screen) + search icon (Map tab only)

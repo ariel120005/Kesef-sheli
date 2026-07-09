@@ -19,6 +19,7 @@ interface Props {
   onOpenCategories: () => void;
   onOpenParseTest: () => void;
   onOpenNotificationSources: () => void;
+  onOpenAbout: () => void;
 }
 
 export function SettingsScreen({
@@ -26,6 +27,7 @@ export function SettingsScreen({
   onOpenCategories,
   onOpenParseTest,
   onOpenNotificationSources,
+  onOpenAbout,
 }: Props) {
   const { colors, mode, toggleTheme } = useTheme();
   const styles = getStyles(colors);
@@ -123,6 +125,14 @@ export function SettingsScreen({
           </View>
         </View>
       </View>
+
+      <Pressable style={[styles.card, styles.actionCard, SHADOW]} onPress={onOpenAbout}>
+        <Ionicons name="chevron-back" size={18} color={colors.subtext} />
+        <View style={styles.rowLabel}>
+          <Ionicons name="information-circle-outline" size={20} color={colors.text} />
+          <Text style={styles.rowText}>אודות ועזרה</Text>
+        </View>
+      </Pressable>
 
       {showAccountFeatures && (
         <>

@@ -92,7 +92,8 @@ export type OverlayScreen =
   | 'savingsGoal'
   | 'categories'
   | 'parseTest'
-  | 'notificationSources';
+  | 'notificationSources'
+  | 'about';
 
 // One app the (future) native notification listener is allowed to read — everything else must
 // be discarded unread. `enabled` defaults to false for every source, including presets: the user

@@ -9,12 +9,14 @@ import { CategoriesScreen } from './src/screens/CategoriesScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { InsightsScreen } from './src/screens/InsightsScreen';
 import { MapScreen } from './src/screens/MapScreen';
+import { AboutScreen } from './src/screens/AboutScreen';
 import { NotificationSourcesScreen } from './src/screens/NotificationSourcesScreen';
 import { ParseTestScreen } from './src/screens/ParseTestScreen';
 import { ProfileMenuScreen } from './src/screens/ProfileMenuScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SavingsGoalScreen } from './src/screens/SavingsGoalScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { SplashScreen } from './src/screens/SplashScreen';
 import { TripsScreen } from './src/screens/TripsScreen';
 import { ThemeColors, ThemeProvider, useTheme } from './src/theme';
 import { OverlayScreen, TabKey } from './src/types';
@@ -146,6 +148,7 @@ function AppContent() {
             onOpenCategories={() => pushOverlay('categories')}
             onOpenParseTest={() => pushOverlay('parseTest')}
             onOpenNotificationSources={() => pushOverlay('notificationSources')}
+            onOpenAbout={() => pushOverlay('about')}
           />
         )}
         {overlayScreen === 'account' && <ProfileScreen onBack={popOverlay} />}
@@ -154,6 +157,7 @@ function AppContent() {
         {overlayScreen === 'categories' && <CategoriesScreen onBack={popOverlay} />}
         {overlayScreen === 'parseTest' && <ParseTestScreen onBack={popOverlay} />}
         {overlayScreen === 'notificationSources' && <NotificationSourcesScreen onBack={popOverlay} />}
+        {overlayScreen === 'about' && <AboutScreen onBack={popOverlay} />}
       </SafeAreaView>
 
       <SafeAreaView style={styles.tabBarSafeArea} edges={['bottom', 'left', 'right']}>
@@ -163,7 +167,20 @@ function AppContent() {
   );
 }
 
+const SPLASH_DURATION_MS = 1300;
+
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), SPLASH_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (showSplash) {
+    return <SplashScreen />;
+  }
+
   return (
     <ThemeProvider>
       <AuthProvider>
