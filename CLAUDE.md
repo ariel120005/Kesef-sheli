@@ -298,8 +298,9 @@ status colors (`danger`/`safe`/`warning`/`over` — over-budget red, on-track gr
 are separate from the accent since they signal meaning, not brand identity, and are pitched a
 shade deeper than a typical pastel so they still read as legible text against a pure-white
 surface, not just as icon tints. Light mode (the default) is pure white background with pure
-black text; dark mode is the exact inverse (pure black background, pure white text) — the two
-themes are mirror images of each other, tied together only by the shared accent color, which
+black text; dark mode inverts the text (pure white), but keeps its background/card a deep
+indigo-black (`#0A0A0F`/`#17171F`) rather than literal `#000000` — the original dark-mode tone
+this app launched with — tied together with light mode only by the shared accent color, which
 never changes between modes.
 
 ## MVP scope

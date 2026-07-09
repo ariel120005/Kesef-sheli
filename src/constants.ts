@@ -24,12 +24,13 @@ export interface SurfaceColors {
   statusBarStyle: 'light-content' | 'dark-content';
 }
 
-// Dark mode is the light palette below with every surface/text value inverted — pure black
-// background, pure white text — so the two themes are mirror images of each other, tied together
-// only by the shared BRAND.accent color above.
+// Dark mode inverts the light palette below's text/surface roles (white text instead of black),
+// but the background/card itself is a deep indigo-black rather than literal pure black — the
+// original dark-mode tone this app launched with — so it stays tied together with the shared
+// BRAND.accent color above rather than the harsher, flatter look of true #000000.
 export const DARK_COLORS: SurfaceColors = {
-  background: '#000000',
-  card: '#000000',
+  background: '#0A0A0F',
+  card: '#17171F',
   cardBorder: 'rgba(255,255,255,0.12)',
   text: '#FFFFFF',
   subtext: '#A3A3AD',
