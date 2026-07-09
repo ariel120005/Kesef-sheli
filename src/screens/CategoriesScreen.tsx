@@ -97,7 +97,7 @@ export function CategoriesScreen({ onBack }: Props) {
         </View>
 
         <Pressable style={[styles.addRow, SHADOW]} onPress={openAddForm}>
-          <Ionicons name="add-circle-outline" size={20} color={colors.turquoise} />
+          <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
           <Text style={styles.addRowText}>קטגוריה חדשה</Text>
         </Pressable>
 
@@ -203,7 +203,7 @@ function getStyles(colors: ThemeColors) {
       borderColor: colors.cardBorder,
     },
     addRowText: {
-      color: colors.turquoise,
+      color: colors.accent,
       fontSize: 15,
       fontWeight: '700',
     },

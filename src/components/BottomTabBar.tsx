@@ -37,7 +37,7 @@ export function BottomTabBar({ active, onChange }: Props) {
             <Ionicons
               name={selected ? tab.iconActive : tab.icon}
               size={24}
-              color={selected ? colors.turquoise : colors.subtext}
+              color={selected ? colors.accent : colors.subtext}
             />
             <Text style={[styles.label, selected && styles.labelActive]}>{tab.label}</Text>
           </Pressable>
@@ -68,7 +68,7 @@ function getStyles(colors: ThemeColors) {
       fontWeight: '600',
     },
     labelActive: {
-      color: colors.turquoise,
+      color: colors.accent,
       fontWeight: '700',
     },
   });

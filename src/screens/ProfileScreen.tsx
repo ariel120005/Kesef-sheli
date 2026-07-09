@@ -29,7 +29,7 @@ export function ProfileScreen({ onBack }: Props) {
       ) : (
         <View style={[styles.card, SHADOW]}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={32} color={colors.turquoise} />
+            <Ionicons name="person" size={32} color={colors.accent} />
           </View>
           <Text style={styles.connectedLabel}>מחוברים כ-</Text>
           <Text style={styles.email}>{user.email}</Text>

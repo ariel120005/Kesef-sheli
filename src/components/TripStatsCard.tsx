@@ -56,7 +56,7 @@ export function TripStatsCard({ trip, transactions }: Props) {
           <Text style={styles.statLabel}>קיבלתי בהחזרים</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={[styles.statValue, { color: colors.turquoise }]}>{formatCurrency(net)}</Text>
+          <Text style={[styles.statValue, { color: colors.accent }]}>{formatCurrency(net)}</Text>
           <Text style={styles.statLabel}>הוצאה נטו</Text>
         </View>
         <View style={styles.statBox}>

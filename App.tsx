@@ -97,7 +97,7 @@ function AppContent() {
       <SafeAreaProvider>
         <SafeAreaView style={[styles.container, styles.loadingContainer]}>
           <StatusBar barStyle={colors.statusBarStyle} />
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={colors.accent} />
         </SafeAreaView>
       </SafeAreaProvider>
     );

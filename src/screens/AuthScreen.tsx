@@ -124,7 +124,7 @@ export function AuthScreen({ embedded = false }: Props) {
               style={styles.submitButton}
             >
               {submitting ? (
-                <ActivityIndicator color="#0A0A0F" />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.submitButtonText}>
                   {mode === 'signIn' ? 'התחברות' : 'הרשמה'}
@@ -222,7 +222,7 @@ function getStyles(colors: ThemeColors) {
       alignItems: 'center',
     },
     submitButtonText: {
-      color: '#0A0A0F',
+      color: '#FFFFFF',
       fontWeight: '700',
       fontSize: 15,
     },
@@ -231,7 +231,7 @@ function getStyles(colors: ThemeColors) {
       alignItems: 'center',
     },
     switchModeText: {
-      color: colors.turquoise,
+      color: colors.accent,
       fontSize: 13,
       fontWeight: '600',
     },

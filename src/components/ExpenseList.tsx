@@ -144,12 +144,12 @@ function getStyles(colors: ThemeColors) {
       paddingHorizontal: 6,
     },
     recurringBadgeText: {
-      color: colors.turquoise,
+      color: colors.accent,
       fontSize: 10,
       fontWeight: '700',
     },
     amount: {
-      color: colors.turquoise,
+      color: colors.accent,
       fontSize: 14,
       fontWeight: '700',
     },
@@ -188,7 +188,7 @@ function getStyles(colors: ThemeColors) {
       marginTop: 4,
     },
     loadMoreText: {
-      color: colors.turquoise,
+      color: colors.accent,
       fontSize: 14,
       fontWeight: '700',
     },

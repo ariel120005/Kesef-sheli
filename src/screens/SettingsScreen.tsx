@@ -112,7 +112,7 @@ export function SettingsScreen({
           <Switch
             value={mode === 'light'}
             onValueChange={toggleTheme}
-            trackColor={{ false: colors.chipBackground, true: colors.turquoise }}
+            trackColor={{ false: colors.chipBackground, true: colors.accent }}
             thumbColor="#FFFFFF"
           />
           <View style={styles.rowLabel}>
@@ -344,7 +344,7 @@ function getStyles(colors: ThemeColors) {
     dayValue: {
       fontSize: 15,
       fontWeight: '700',
-      color: colors.turquoise,
+      color: colors.accent,
     },
     actionCard: {
       flexDirection: 'row-reverse',

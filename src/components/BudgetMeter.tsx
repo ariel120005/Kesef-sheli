@@ -96,7 +96,7 @@ function getStyles(colors: ThemeColors) {
       textAlign: 'right',
     },
     editLink: {
-      color: colors.turquoise,
+      color: colors.accent,
       fontSize: 14,
       fontWeight: '600',
     },
@@ -112,7 +112,7 @@ function getStyles(colors: ThemeColors) {
       alignItems: 'center',
     },
     setButtonText: {
-      color: '#0A0A0F',
+      color: '#FFFFFF',
       fontWeight: '700',
       fontSize: 15,
     },

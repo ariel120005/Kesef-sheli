@@ -83,7 +83,7 @@ function getStyles(colors: ThemeColors) {
       backgroundColor: colors.danger,
     },
     confirmButtonText: {
-      color: '#0A0A0F',
+      color: '#FFFFFF',
       fontWeight: '700',
     },
     cancelButton: {

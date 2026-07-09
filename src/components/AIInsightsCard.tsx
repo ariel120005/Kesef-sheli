@@ -25,7 +25,7 @@ export function AIInsightsCard({ expenses, budget, monthStartDay = 1 }: Props) {
     <View style={[styles.card, SHADOW]}>
       <View style={styles.titleRow}>
         <Text style={styles.title}>תובנות</Text>
-        <Ionicons name="sparkles-outline" size={20} color={colors.turquoise} />
+        <Ionicons name="sparkles-outline" size={20} color={colors.accent} />
       </View>
 
       {insights.map((insight, index) => (
@@ -70,7 +70,7 @@ function getStyles(colors: ThemeColors) {
       width: 6,
       height: 6,
       borderRadius: 3,
-      backgroundColor: colors.turquoise,
+      backgroundColor: colors.accent,
       marginTop: 7,
     },
     insightText: {

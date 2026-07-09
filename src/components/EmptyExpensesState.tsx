@@ -46,7 +46,7 @@ function FloatingCoin({ delay, style, colors }: FloatingCoinProps) {
         { transform: [{ translateY }] },
       ]}
     >
-      <Text style={[coinStyles.coinText, { color: colors.turquoise }]}>₪</Text>
+      <Text style={[coinStyles.coinText, { color: colors.accent }]}>₪</Text>
     </Animated.View>
   );
 }
@@ -78,7 +78,7 @@ export function EmptyExpensesState() {
         <FloatingCoin delay={350} style={styles.coinTopRight} colors={colors} />
         <FloatingCoin delay={700} style={styles.coinBottom} colors={colors} />
         <View style={styles.walletCircle}>
-          <Ionicons name="wallet-outline" size={40} color={colors.turquoise} />
+          <Ionicons name="wallet-outline" size={40} color={colors.accent} />
         </View>
       </View>
       <Text style={styles.title}>עדיין לא הוספתם הוצאות</Text>

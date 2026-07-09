@@ -146,7 +146,7 @@ function getStyles(colors: ThemeColors) {
       paddingHorizontal: 6,
     },
     autoBadgeText: {
-      color: colors.turquoise,
+      color: colors.accent,
       fontSize: 10,
       fontWeight: '700',
     },

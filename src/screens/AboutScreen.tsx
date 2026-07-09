@@ -68,7 +68,7 @@ export function AboutScreen({ onBack }: Props) {
         {TABS.map((tab) => (
           <View key={tab.label} style={[styles.tabRow, SHADOW]}>
             <View style={styles.tabIconWrap}>
-              <Ionicons name={tab.icon} size={20} color={colors.turquoise} />
+              <Ionicons name={tab.icon} size={20} color={colors.accent} />
             </View>
             <View style={styles.tabTextWrap}>
               <Text style={styles.tabLabel}>{tab.label}</Text>

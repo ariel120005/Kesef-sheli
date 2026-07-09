@@ -105,7 +105,7 @@ export function MapScreen() {
         const { latitude, longitude } = position.coords;
         map.flyTo({ center: [longitude, latitude], zoom: GEOLOCATION_ZOOM });
         locationMarkerRef.current?.remove();
-        locationMarkerRef.current = new maplibregl.Marker({ element: createDotElement(colors.turquoise) })
+        locationMarkerRef.current = new maplibregl.Marker({ element: createDotElement(colors.accent) })
           .setLngLat([longitude, latitude])
           .setPopup(new maplibregl.Popup({ closeButton: false }).setText('המיקום שלך'))
           .addTo(map);
@@ -289,7 +289,7 @@ export function MapScreen() {
                   <Ionicons
                     name={option.icon}
                     size={18}
-                    color={selected ? colors.turquoise : colors.text}
+                    color={selected ? colors.accent : colors.text}
                   />
                   <Text style={[styles.layerRowText, selected && styles.layerRowTextSelected]}>
                     {option.label}
@@ -309,9 +309,9 @@ export function MapScreen() {
 
         <Pressable style={[styles.cornerButton, styles.shadow]} onPress={locateMe} disabled={locating}>
           {locating ? (
-            <ActivityIndicator size="small" color={colors.turquoise} />
+            <ActivityIndicator size="small" color={colors.accent} />
           ) : (
-            <Ionicons name="locate" size={22} color={colors.turquoise} />
+            <Ionicons name="locate" size={22} color={colors.accent} />
           )}
         </Pressable>
       </View>
@@ -452,7 +452,7 @@ function getStyles(colors: ThemeColors) {
       fontWeight: '600',
     },
     layerRowTextSelected: {
-      color: colors.turquoise,
+      color: colors.accent,
       fontWeight: '700',
     },
   });

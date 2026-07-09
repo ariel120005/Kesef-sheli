@@ -285,11 +285,22 @@ screen bullet above) could see the same open/closed trip state as the Trips scre
 ## Theming
 
 `src/theme.tsx` provides `useTheme()` → `{ mode, colors, toggleTheme }`. `colors` merges
-theme-invariant brand/accent colors (`BRAND` in `src/constants.ts` — purple/turquoise/etc., used
-for gradients and status colors) with theme-dependent surface colors (`DARK_COLORS` /
-`LIGHT_COLORS` — background, card, text, border...). Every component computes its
-`StyleSheet` via a `getStyles(colors)` function called in the component body (not a
+theme-invariant brand/status colors (`BRAND` in `src/constants.ts`) with theme-dependent surface
+colors (`DARK_COLORS` / `LIGHT_COLORS` — background, card, text, border...). Every component
+computes its `StyleSheet` via a `getStyles(colors)` function called in the component body (not a
 module-level constant), so it re-renders correctly on theme toggle.
+
+The whole app is built around a **single accent color** (`BRAND.accent`, a teal-green `#0D9488`)
+used for every "live" UI element — buttons, progress-bar fills, selected chips/icons — instead of
+a second brand hue; `GRADIENTS.primary` is a two-stop gradient built from that one hue (never a
+different color) so CTAs keep some shine without contradicting the one-accent design. Semantic
+status colors (`danger`/`safe`/`warning`/`over` — over-budget red, on-track green, warning amber)
+are separate from the accent since they signal meaning, not brand identity, and are pitched a
+shade deeper than a typical pastel so they still read as legible text against a pure-white
+surface, not just as icon tints. Light mode (the default) is pure white background with pure
+black text; dark mode is the exact inverse (pure black background, pure white text) — the two
+themes are mirror images of each other, tied together only by the shared accent color, which
+never changes between modes.
 
 ## MVP scope
 

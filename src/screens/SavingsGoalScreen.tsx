@@ -74,7 +74,7 @@ export function SavingsGoalScreen({ onBack }: Props) {
           </View>
         ) : !loaded ? (
           <View style={styles.messageContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
         ) : (
           <SavingsGoalCard
@@ -131,7 +131,7 @@ function getStyles(colors: ThemeColors) {
       paddingHorizontal: 10,
     },
     demoBadgeText: {
-      color: '#0A0A0F',
+      color: '#000000',
       fontSize: 11,
       fontWeight: '700',
     },

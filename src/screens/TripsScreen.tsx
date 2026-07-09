@@ -139,7 +139,7 @@ export function TripsScreen({ onBack }: Props) {
   if (!tripsLoaded) {
     return (
       <View style={styles.messageContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -236,7 +236,7 @@ export function TripsScreen({ onBack }: Props) {
             end={{ x: 1, y: 0 }}
             style={styles.createButton}
           >
-            <Ionicons name="add" size={20} color="#0A0A0F" />
+            <Ionicons name="add" size={20} color="#FFFFFF" />
             <Text style={styles.createButtonText}>טיול חדש</Text>
           </LinearGradient>
         </Pressable>
@@ -375,7 +375,7 @@ function getStyles(colors: ThemeColors) {
       paddingHorizontal: 10,
     },
     demoBadgeText: {
-      color: '#0A0A0F',
+      color: '#000000',
       fontSize: 11,
       fontWeight: '700',
     },
@@ -397,7 +397,7 @@ function getStyles(colors: ThemeColors) {
       paddingVertical: 15,
     },
     createButtonText: {
-      color: '#0A0A0F',
+      color: '#FFFFFF',
       fontWeight: '700',
       fontSize: 15,
     },

@@ -72,7 +72,7 @@ export function InsightsScreen({ onOpenTrips, onOpenSavingsGoal }: Props) {
   if (!loaded) {
     return (
       <View style={styles.messageContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -137,7 +137,7 @@ function ShortcutCard({
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
       <View style={styles.iconWrap}>
-        <Ionicons name={icon} size={22} color={colors.turquoise} />
+        <Ionicons name={icon} size={22} color={colors.accent} />
       </View>
     </Pressable>
   );
@@ -229,7 +229,7 @@ function getStyles(colors: ThemeColors) {
       paddingHorizontal: 10,
     },
     demoBadgeText: {
-      color: '#0A0A0F',
+      color: '#000000',
       fontSize: 11,
       fontWeight: '700',
     },

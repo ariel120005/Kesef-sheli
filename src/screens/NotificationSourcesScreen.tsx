@@ -94,7 +94,7 @@ export function NotificationSourcesScreen({ onBack }: Props) {
             <Switch
               value={source.enabled}
               onValueChange={(value) => toggleSource(source.id, value)}
-              trackColor={{ false: colors.chipBackground, true: colors.turquoise }}
+              trackColor={{ false: colors.chipBackground, true: colors.accent }}
               thumbColor="#FFFFFF"
             />
             <View style={styles.rowTextWrap}>
@@ -147,7 +147,7 @@ export function NotificationSourcesScreen({ onBack }: Props) {
           </View>
         ) : (
           <Pressable style={[styles.addRow, SHADOW]} onPress={() => setAddFormOpen(true)}>
-            <Ionicons name="add-circle-outline" size={20} color={colors.turquoise} />
+            <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
             <Text style={styles.addRowText}>הוספת אפליקציה ידנית</Text>
           </Pressable>
         )}
@@ -261,7 +261,7 @@ function getStyles(colors: ThemeColors) {
       borderColor: colors.cardBorder,
     },
     addRowText: {
-      color: colors.turquoise,
+      color: colors.accent,
       fontSize: 15,
       fontWeight: '700',
     },
@@ -295,13 +295,13 @@ function getStyles(colors: ThemeColors) {
     },
     addFormButton: {
       flex: 1,
-      backgroundColor: colors.turquoise,
+      backgroundColor: colors.accent,
       borderRadius: 14,
       paddingVertical: 12,
       alignItems: 'center',
     },
     addFormButtonText: {
-      color: '#0A0A0F',
+      color: '#FFFFFF',
       fontWeight: '700',
     },
     addFormCancelButton: {

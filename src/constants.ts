@@ -1,12 +1,15 @@
-// Accent/status colors stay constant across both themes — they read fine on
-// both a near-black and a near-white surface.
+// A single teal-green accent used everywhere a "live" UI color is needed (buttons, progress
+// bars, selected icons) — the whole app is built around this one hue rather than a second brand
+// color, so it stays visually identical between light and dark mode. Semantic status colors
+// (danger/safe/warning/over) are separate — they signal meaning (over budget, on track, etc.),
+// not brand identity — and are pitched a shade deeper than a typical pastel so they still read
+// clearly as text against a pure-white surface, not just as icon tints.
 export const BRAND = {
-  primary: '#8B5CF6',
-  turquoise: '#2DD4BF',
-  danger: '#FB7185',
-  safe: '#34D399',
-  warning: '#FBBF24',
-  over: '#FB7185',
+  accent: '#0D9488',
+  danger: '#E11D48',
+  safe: '#059669',
+  warning: '#D97706',
+  over: '#E11D48',
 };
 
 export interface SurfaceColors {
@@ -21,35 +24,41 @@ export interface SurfaceColors {
   statusBarStyle: 'light-content' | 'dark-content';
 }
 
+// Dark mode is the light palette below with every surface/text value inverted — pure black
+// background, pure white text — so the two themes are mirror images of each other, tied together
+// only by the shared BRAND.accent color above.
 export const DARK_COLORS: SurfaceColors = {
-  background: '#0A0A0F',
-  card: '#17171F',
-  cardBorder: 'rgba(255,255,255,0.06)',
-  text: '#F5F5F7',
-  subtext: '#93939F',
-  border: 'rgba(255,255,255,0.09)',
-  chipBackground: 'rgba(255,255,255,0.05)',
-  deleteBackground: 'rgba(251,113,133,0.14)',
+  background: '#000000',
+  card: '#000000',
+  cardBorder: 'rgba(255,255,255,0.12)',
+  text: '#FFFFFF',
+  subtext: '#A3A3AD',
+  border: 'rgba(255,255,255,0.14)',
+  chipBackground: 'rgba(255,255,255,0.06)',
+  deleteBackground: 'rgba(225,29,72,0.18)',
   statusBarStyle: 'light-content',
 };
 
 export const LIGHT_COLORS: SurfaceColors = {
-  background: '#F2F3F7',
+  background: '#FFFFFF',
   card: '#FFFFFF',
-  cardBorder: 'rgba(0,0,0,0.06)',
-  text: '#15151C',
-  subtext: '#6B6B76',
-  border: 'rgba(0,0,0,0.09)',
-  chipBackground: 'rgba(0,0,0,0.04)',
-  deleteBackground: 'rgba(225,29,72,0.10)',
+  cardBorder: 'rgba(0,0,0,0.10)',
+  text: '#000000',
+  subtext: '#5C5C66',
+  border: 'rgba(0,0,0,0.12)',
+  chipBackground: 'rgba(0,0,0,0.045)',
+  deleteBackground: 'rgba(225,29,72,0.08)',
   statusBarStyle: 'dark-content',
 };
 
+// Two-stop gradients built from a single hue (never a second, different color) so CTAs keep a
+// bit of shine/depth without contradicting the one-accent-color design. The status gradients
+// (safe/warning/over) are separate semantic shades, each its own lighter→deeper pair.
 export const GRADIENTS = {
-  primary: ['#2DD4BF', '#8B5CF6'] as const,
-  safe: ['#34D399', '#2DD4BF'] as const,
-  warning: ['#FBBF24', '#FB923C'] as const,
-  over: ['#FB7185', '#E11D48'] as const,
+  primary: ['#14B8A6', '#0D9488'] as const,
+  safe: ['#10B981', '#059669'] as const,
+  warning: ['#F59E0B', '#D97706'] as const,
+  over: ['#F43F5E', '#E11D48'] as const,
 };
 
 // Categories are user-managed (add/rename/recolor/delete — see CategoriesScreen), not a fixed

@@ -114,7 +114,7 @@ function getStyles(colors: ThemeColors) {
       textAlign: 'right',
     },
     menuItemTextSelected: {
-      color: colors.turquoise,
+      color: colors.accent,
       fontWeight: '800',
     },
   });

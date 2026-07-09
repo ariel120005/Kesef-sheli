@@ -46,7 +46,7 @@ export function TripSummaryCard({ trip, transactions }: Props) {
           <Text style={styles.label}>סה״כ קיבלתי בהחזרים</Text>
         </View>
         <View style={styles.box}>
-          <Text style={[styles.value, { color: colors.turquoise }]}>{formatCurrency(net)}</Text>
+          <Text style={[styles.value, { color: colors.accent }]}>{formatCurrency(net)}</Text>
           <Text style={styles.label}>הוצאה נטו סופית</Text>
         </View>
         <View style={styles.box}>

@@ -117,7 +117,7 @@ function getStyles(colors: ThemeColors) {
       alignItems: 'center',
     },
     saveButtonText: {
-      color: '#0A0A0F',
+      color: '#FFFFFF',
       fontWeight: '700',
     },
     cancelButton: {

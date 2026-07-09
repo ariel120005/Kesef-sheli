@@ -63,7 +63,7 @@ function MenuRow({
       <Ionicons name="chevron-back" size={18} color={colors.subtext} />
       <Text style={styles.rowText}>{label}</Text>
       <View style={styles.rowIconWrap}>
-        <Ionicons name={icon} size={20} color={colors.turquoise} />
+        <Ionicons name={icon} size={20} color={colors.accent} />
       </View>
     </Pressable>
   );

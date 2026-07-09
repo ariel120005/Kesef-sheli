@@ -152,7 +152,7 @@ export function AddExpenseForm({ categories, defaultCurrency = 'ILS', onAdd }: P
         <Switch
           value={recurring}
           onValueChange={setRecurring}
-          trackColor={{ false: colors.chipBackground, true: colors.turquoise }}
+          trackColor={{ false: colors.chipBackground, true: colors.accent }}
           thumbColor="#FFFFFF"
         />
         <Text style={styles.recurringText}>הוצאה קבועה כל חודש</Text>
@@ -249,7 +249,7 @@ function getStyles(colors: ThemeColors) {
       fontSize: 13,
     },
     categoryChipTextSelected: {
-      color: '#0A0A0F',
+      color: '#FFFFFF',
       fontWeight: '700',
       fontSize: 13,
     },
@@ -270,7 +270,7 @@ function getStyles(colors: ThemeColors) {
       alignItems: 'center',
     },
     submitButtonText: {
-      color: '#0A0A0F',
+      color: '#FFFFFF',
       fontWeight: '700',
       fontSize: 15,
     },
