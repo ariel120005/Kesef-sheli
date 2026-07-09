@@ -126,14 +126,6 @@ export function SettingsScreen({
         </View>
       </View>
 
-      <Pressable style={[styles.card, styles.actionCard, SHADOW]} onPress={onOpenAbout}>
-        <Ionicons name="chevron-back" size={18} color={colors.subtext} />
-        <View style={styles.rowLabel}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.text} />
-          <Text style={styles.rowText}>אודות ועזרה</Text>
-        </View>
-      </Pressable>
-
       {showAccountFeatures && (
         <>
           <View style={[styles.card, SHADOW]}>
@@ -188,20 +180,30 @@ export function SettingsScreen({
             <Text style={styles.actionText}>ייצוא נתונים (CSV)</Text>
             <Ionicons name="download-outline" size={20} color={colors.text} />
           </Pressable>
-
-          <Pressable
-            style={[styles.card, styles.actionCard, SHADOW]}
-            onPress={() => setConfirmingResetStep1(true)}
-            disabled={resetting}
-          >
-            <Text style={[styles.actionText, styles.dangerText]}>איפוס נתונים</Text>
-            {resetting ? (
-              <ActivityIndicator color={colors.danger} />
-            ) : (
-              <Ionicons name="refresh-outline" size={20} color={colors.danger} />
-            )}
-          </Pressable>
         </>
+      )}
+
+      <Pressable style={[styles.card, styles.actionCard, SHADOW]} onPress={onOpenAbout}>
+        <Ionicons name="chevron-back" size={18} color={colors.subtext} />
+        <View style={styles.rowLabel}>
+          <Ionicons name="information-circle-outline" size={20} color={colors.text} />
+          <Text style={styles.rowText}>אודות ועזרה</Text>
+        </View>
+      </Pressable>
+
+      {showAccountFeatures && (
+        <Pressable
+          style={[styles.card, styles.actionCard, SHADOW]}
+          onPress={() => setConfirmingResetStep1(true)}
+          disabled={resetting}
+        >
+          <Text style={[styles.actionText, styles.dangerText]}>איפוס נתונים</Text>
+          {resetting ? (
+            <ActivityIndicator color={colors.danger} />
+          ) : (
+            <Ionicons name="refresh-outline" size={20} color={colors.danger} />
+          )}
+        </Pressable>
       )}
 
       {user && (

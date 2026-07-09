@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# כסף שלי — Expense & Budget Tracker
+# הכסף של בוקי — Expense & Budget Tracker
 
 Android app built with React Native + Expo (managed workflow). Hebrew UI, RTL layout. Real user
 accounts via Firebase Authentication; data lives in Firestore (per-user), not just on-device, so
@@ -267,9 +267,10 @@ A brief **splash screen** (`src/screens/SplashScreen.tsx`) shows on every app la
 fixed-duration (`SPLASH_DURATION_MS` in `App.tsx`, currently 1.3s) gate in front of
 `ThemeProvider`/`AuthProvider`/`DemoBudgetDataProvider`, always on the dark surface regardless of
 the user's chosen theme (matches how a launch screen looks before the theme provider is even
-mounted). Shows `AppLogo.tsx` — a temporary placeholder logo (a wallet icon in the app's
-turquoise→purple brand gradient, `GRADIENTS.primary`) meant to be swapped for a real logo/image
-once one exists; every place that shows the logo goes through this one component.
+mounted). Shows `AppLogo.tsx` — the app's real logo (`assets/logo.jpg`, a full icon+wordmark+
+tagline lockup, so nothing else needs to caption it) — every place that shows the logo (splash
+screen, About screen) goes through this one component; swap `assets/logo.jpg` to change it
+everywhere at once.
 
 Home, Insights, Settings, Categories, Trips, and the Savings Goal screen all need the same budget/
 expenses/savings-goal/categories/default-currency/month-start-day/notification-sources/trips
@@ -448,9 +449,9 @@ src/screens/NotificationSourcesScreen.tsx  per-app allowlist for the (future) no
                                       manual add, everything off by default (overlay screen)
 src/screens/AboutScreen.tsx          static app name/version/logo, per-tab explanations, feature checklist
                                       (overlay screen, reached via Settings)
-src/screens/SplashScreen.tsx         brief fixed-duration launch screen — logo + app name on the dark surface
-src/components/AppLogo.tsx           temporary placeholder logo (gradient-badged wallet icon), swap for a real
-                                      logo/image later — every place that shows the logo goes through here
+src/screens/SplashScreen.tsx         brief fixed-duration launch screen — logo on the dark surface
+src/components/AppLogo.tsx           the app's real logo (assets/logo.jpg) — every place that shows the logo
+                                      goes through here
 src/screens/MapScreen.tsx / .web.tsx world map: static react-native-webview embed (native) vs
                                       real MapLibre GL map + Nominatim place search + expense pins (web)
 src/components/TopBar.tsx            profile icon (opens the profile menu screen) + search icon (Map tab only)

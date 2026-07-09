@@ -60,8 +60,7 @@ export function AboutScreen({ onBack }: Props) {
         </View>
 
         <View style={styles.identityCard}>
-          <AppLogo size={64} />
-          <Text style={styles.appName}>כסף שלי</Text>
+          <AppLogo size={104} />
           <Text style={styles.version}>גרסה {APP_VERSION}</Text>
         </View>
 
@@ -129,13 +128,7 @@ function getStyles(colors: ThemeColors) {
       marginBottom: 24,
       borderWidth: 1,
       borderColor: colors.cardBorder,
-      gap: 6,
-    },
-    appName: {
-      fontSize: 20,
-      fontWeight: '800',
-      color: colors.text,
-      marginTop: 10,
+      gap: 10,
     },
     version: {
       fontSize: 13,

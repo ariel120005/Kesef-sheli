@@ -97,7 +97,7 @@ export function HomeScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
-          <Text style={styles.header}>כסף שלי</Text>
+          <Text style={styles.header}>הכסף של בוקי</Text>
           {!isFirebaseConfigured && (
             <View style={styles.demoBadge}>
               <Text style={styles.demoBadgeText}>מצב הדגמה</Text>

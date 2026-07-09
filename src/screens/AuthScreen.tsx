@@ -88,7 +88,7 @@ export function AuthScreen({ embedded = false }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {!embedded && <Text style={styles.header}>כסף שלי</Text>}
+        {!embedded && <Text style={styles.header}>הכסף של בוקי</Text>}
 
         <View style={[styles.card, SHADOW]}>
           <Text style={styles.title}>{mode === 'signIn' ? 'התחברות' : 'הרשמה'}</Text>
