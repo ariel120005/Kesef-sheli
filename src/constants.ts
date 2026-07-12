@@ -1,11 +1,11 @@
-// A single purple-pink accent used everywhere a "live" UI element is needed (buttons,
-// progress-bar fills, selected chips/icons) — stays visually identical between light and dark
-// mode. Semantic status colors (danger/safe/warning/over) are separate — they signal meaning
-// (over budget, on track, etc.), not brand identity — and are pitched a shade deeper than a
-// typical pastel so they still read clearly as text against a pale surface, not just as icon
-// tints.
+// A vivid "aurora" accent — cyan through violet to hot pink — used everywhere a "live" UI
+// element is needed (buttons, progress-bar fills, selected chips/icons). BRAND.accent is the
+// single anchor color for solid (non-gradient) uses like icons/switches/link text;
+// GRADIENTS.primary is the full three-stop sweep used for buttons and fills, and stays
+// identical between light and dark mode. Semantic status colors (danger/safe/warning/over) are
+// separate — they signal meaning (over budget, on track, etc.), not brand identity.
 export const BRAND = {
-  accent: '#C026D3',
+  accent: '#8B5CF6',
   danger: '#E11D48',
   safe: '#059669',
   warning: '#D97706',
@@ -24,38 +24,38 @@ export interface SurfaceColors {
   statusBarStyle: 'light-content' | 'dark-content';
 }
 
-// Dark mode inverts the light palette below's text (white instead of black), and its
-// background/card is a deep purple-black rather than a neutral one, so the whole surface — not
-// just the accent — carries the purple-pink identity in both themes.
+// Dark mode is the flagship look — a rich, deep violet-black (not neutral) so the vivid aurora
+// accent really glows against it — with white text/icons instead of the light palette's black.
 export const DARK_COLORS: SurfaceColors = {
-  background: '#1A0B24',
-  card: '#2A1633',
-  cardBorder: 'rgba(232,121,249,0.16)',
+  background: '#0B0618',
+  card: '#1C1430',
+  cardBorder: 'rgba(139,92,246,0.24)',
   text: '#FFFFFF',
-  subtext: '#C7A9CF',
-  border: 'rgba(232,121,249,0.18)',
-  chipBackground: 'rgba(232,121,249,0.09)',
-  deleteBackground: 'rgba(225,29,72,0.18)',
+  subtext: '#B8A9D9',
+  border: 'rgba(139,92,246,0.26)',
+  chipBackground: 'rgba(139,92,246,0.13)',
+  deleteBackground: 'rgba(244,63,94,0.18)',
   statusBarStyle: 'light-content',
 };
 
 export const LIGHT_COLORS: SurfaceColors = {
-  background: '#FBEEFC',
+  background: '#F6F2FF',
   card: '#FFFFFF',
-  cardBorder: 'rgba(192,38,211,0.14)',
+  cardBorder: 'rgba(139,92,246,0.18)',
   text: '#000000',
-  subtext: '#6E5A78',
-  border: 'rgba(168,85,247,0.16)',
-  chipBackground: 'rgba(192,38,211,0.07)',
+  subtext: '#6B5C8C',
+  border: 'rgba(139,92,246,0.20)',
+  chipBackground: 'rgba(139,92,246,0.09)',
   deleteBackground: 'rgba(225,29,72,0.08)',
   statusBarStyle: 'dark-content',
 };
 
-// Two-stop gradients built from a single hue (never a second, different color) so CTAs keep a
-// bit of shine/depth without contradicting the one-accent-color design. The status gradients
-// (safe/warning/over) are separate semantic shades, each its own lighter→deeper pair.
+// The signature three-stop "aurora" sweep (cyan → violet → pink) used for every CTA/fill — one
+// consistent gradient identity reused everywhere rather than a flat single color, for more
+// visual energy. The status gradients (safe/warning/over) are separate semantic shades, each
+// its own lighter→deeper pair.
 export const GRADIENTS = {
-  primary: ['#E879F9', '#C026D3'] as const,
+  primary: ['#22D3EE', '#8B5CF6', '#EC4899'] as const,
   safe: ['#10B981', '#059669'] as const,
   warning: ['#F59E0B', '#D97706'] as const,
   over: ['#F43F5E', '#E11D48'] as const,

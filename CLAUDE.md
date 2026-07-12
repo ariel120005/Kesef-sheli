@@ -290,22 +290,21 @@ colors (`DARK_COLORS` / `LIGHT_COLORS` — background, card, text, border...). E
 computes its `StyleSheet` via a `getStyles(colors)` function called in the component body (not a
 module-level constant), so it re-renders correctly on theme toggle.
 
-The whole app is built around a **single accent color** (`BRAND.accent`, a purple-pink `#C026D3`)
-used for every "live" UI element — buttons, progress-bar fills, selected chips/icons — instead of
-a second brand hue; `GRADIENTS.primary` is a two-stop gradient built from that one hue (never a
-different color) so CTAs keep some shine without contradicting the one-accent design. Semantic
-status colors (`danger`/`safe`/`warning`/`over` — over-budget red, on-track green, warning amber)
-are separate from the accent since they signal meaning, not brand identity, and are pitched a
-shade deeper than a typical pastel so they still read as legible text against the app's pale
-surfaces, not just as icon tints. Light mode (the default) is a pale purple-pink background
-(`#FBEEFC`) with pure black text and white cards; dark mode inverts the text (pure white), and
-its background/card is a deep purple-black (`#1A0B24`/`#2A1633`) rather than a neutral dark tone
-— so the purple-pink identity carries through the surfaces themselves in both themes, not just
-the accent color. A `DotBackground` component (`src/components/DotBackground.tsx`) layers a
-subtle, session-stable scattered white-dot texture (SVG circles, `react-native-svg`) behind all
-content in both themes — mounted once in `App.tsx` (behind the main content and the
-auth-initializing loading screen) and once in `SplashScreen.tsx`, since every screen's own
-container is otherwise transparent and lets the single top-level background paint through.
+The app is built around a vivid three-stop **"aurora" gradient** (cyan → violet → pink,
+`GRADIENTS.primary` = `['#22D3EE', '#8B5CF6', '#EC4899']`) used for every "live" UI element —
+buttons, progress-bar fills, selected chips/icons — instead of a flat single color, for more
+visual energy; `BRAND.accent` (`#8B5CF6`, the violet midpoint) is the anchor color for solid
+(non-gradient) uses like icons/switches/link text. Semantic status colors
+(`danger`/`safe`/`warning`/`over` — over-budget red, on-track green, warning amber) are separate
+from the accent since they signal meaning, not brand identity. **Dark mode is the default and
+the flagship look** — a rich, deep violet-black (`#0B0618` background / `#1C1430` card, not a
+neutral dark tone) that makes the aurora gradient glow — with white text/icons; light mode
+inverts the text (pure black) on a pale lavender-white background (`#F6F2FF`, white cards). A
+`DotBackground` component (`src/components/DotBackground.tsx`) layers a subtle, session-stable
+sparkle texture (SVG circles, `react-native-svg` — mostly white, a few tinted with the aurora
+colors) behind all content in both themes — mounted once in `App.tsx` (behind the main content
+and the auth-initializing loading screen) and once in `SplashScreen.tsx`, since every screen's
+own container is otherwise transparent and lets the single top-level background paint through.
 
 ## MVP scope
 
