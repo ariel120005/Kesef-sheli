@@ -1,11 +1,11 @@
-// A single teal-green accent used everywhere a "live" UI color is needed (buttons, progress
-// bars, selected icons) — the whole app is built around this one hue rather than a second brand
-// color, so it stays visually identical between light and dark mode. Semantic status colors
-// (danger/safe/warning/over) are separate — they signal meaning (over budget, on track, etc.),
-// not brand identity — and are pitched a shade deeper than a typical pastel so they still read
-// clearly as text against a pure-white surface, not just as icon tints.
+// A single purple-pink accent used everywhere a "live" UI element is needed (buttons,
+// progress-bar fills, selected chips/icons) — stays visually identical between light and dark
+// mode. Semantic status colors (danger/safe/warning/over) are separate — they signal meaning
+// (over budget, on track, etc.), not brand identity — and are pitched a shade deeper than a
+// typical pastel so they still read clearly as text against a pale surface, not just as icon
+// tints.
 export const BRAND = {
-  accent: '#0D9488',
+  accent: '#C026D3',
   danger: '#E11D48',
   safe: '#059669',
   warning: '#D97706',
@@ -24,30 +24,29 @@ export interface SurfaceColors {
   statusBarStyle: 'light-content' | 'dark-content';
 }
 
-// Dark mode inverts the light palette below's text/surface roles (white text instead of black),
-// but the background/card itself is a deep indigo-black rather than literal pure black — the
-// original dark-mode tone this app launched with — so it stays tied together with the shared
-// BRAND.accent color above rather than the harsher, flatter look of true #000000.
+// Dark mode inverts the light palette below's text (white instead of black), and its
+// background/card is a deep purple-black rather than a neutral one, so the whole surface — not
+// just the accent — carries the purple-pink identity in both themes.
 export const DARK_COLORS: SurfaceColors = {
-  background: '#0A0A0F',
-  card: '#17171F',
-  cardBorder: 'rgba(255,255,255,0.12)',
+  background: '#1A0B24',
+  card: '#2A1633',
+  cardBorder: 'rgba(232,121,249,0.16)',
   text: '#FFFFFF',
-  subtext: '#A3A3AD',
-  border: 'rgba(255,255,255,0.14)',
-  chipBackground: 'rgba(255,255,255,0.06)',
+  subtext: '#C7A9CF',
+  border: 'rgba(232,121,249,0.18)',
+  chipBackground: 'rgba(232,121,249,0.09)',
   deleteBackground: 'rgba(225,29,72,0.18)',
   statusBarStyle: 'light-content',
 };
 
 export const LIGHT_COLORS: SurfaceColors = {
-  background: '#FFFFFF',
+  background: '#FBEEFC',
   card: '#FFFFFF',
-  cardBorder: 'rgba(0,0,0,0.10)',
+  cardBorder: 'rgba(192,38,211,0.14)',
   text: '#000000',
-  subtext: '#5C5C66',
-  border: 'rgba(0,0,0,0.12)',
-  chipBackground: 'rgba(0,0,0,0.045)',
+  subtext: '#6E5A78',
+  border: 'rgba(168,85,247,0.16)',
+  chipBackground: 'rgba(192,38,211,0.07)',
   deleteBackground: 'rgba(225,29,72,0.08)',
   statusBarStyle: 'dark-content',
 };
@@ -56,7 +55,7 @@ export const LIGHT_COLORS: SurfaceColors = {
 // bit of shine/depth without contradicting the one-accent-color design. The status gradients
 // (safe/warning/over) are separate semantic shades, each its own lighter→deeper pair.
 export const GRADIENTS = {
-  primary: ['#14B8A6', '#0D9488'] as const,
+  primary: ['#E879F9', '#C026D3'] as const,
   safe: ['#10B981', '#059669'] as const,
   warning: ['#F59E0B', '#D97706'] as const,
   over: ['#F43F5E', '#E11D48'] as const,

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StatusBar, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { BottomTabBar } from './src/components/BottomTabBar';
+import { DotBackground } from './src/components/DotBackground';
 import { TopBar } from './src/components/TopBar';
 import { AuthProvider, useAuth } from './src/hooks/useAuth';
 import { DemoBudgetDataProvider } from './src/hooks/useDemoBudgetData';
@@ -96,6 +97,7 @@ function AppContent() {
     return (
       <SafeAreaProvider>
         <SafeAreaView style={[styles.container, styles.loadingContainer]}>
+          <DotBackground />
           <StatusBar barStyle={colors.statusBarStyle} />
           <ActivityIndicator size="large" color={colors.accent} />
         </SafeAreaView>
@@ -121,6 +123,7 @@ function AppContent() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <DotBackground />
         <StatusBar barStyle={colors.statusBarStyle} />
 
         {overlayScreen === null && (

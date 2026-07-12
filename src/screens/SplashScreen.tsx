@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppLogo } from '../components/AppLogo';
+import { DotBackground } from '../components/DotBackground';
 import { DARK_COLORS } from '../constants';
 
 // Shown briefly on app launch (see App.tsx), always on the dark surface regardless of the
@@ -9,6 +10,7 @@ import { DARK_COLORS } from '../constants';
 export function SplashScreen() {
   return (
     <View style={styles.container}>
+      <DotBackground />
       <AppLogo size={160} />
     </View>
   );

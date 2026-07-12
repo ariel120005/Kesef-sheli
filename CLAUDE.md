@@ -290,18 +290,22 @@ colors (`DARK_COLORS` / `LIGHT_COLORS` — background, card, text, border...). E
 computes its `StyleSheet` via a `getStyles(colors)` function called in the component body (not a
 module-level constant), so it re-renders correctly on theme toggle.
 
-The whole app is built around a **single accent color** (`BRAND.accent`, a teal-green `#0D9488`)
+The whole app is built around a **single accent color** (`BRAND.accent`, a purple-pink `#C026D3`)
 used for every "live" UI element — buttons, progress-bar fills, selected chips/icons — instead of
 a second brand hue; `GRADIENTS.primary` is a two-stop gradient built from that one hue (never a
 different color) so CTAs keep some shine without contradicting the one-accent design. Semantic
 status colors (`danger`/`safe`/`warning`/`over` — over-budget red, on-track green, warning amber)
 are separate from the accent since they signal meaning, not brand identity, and are pitched a
-shade deeper than a typical pastel so they still read as legible text against a pure-white
-surface, not just as icon tints. Light mode (the default) is pure white background with pure
-black text; dark mode inverts the text (pure white), but keeps its background/card a deep
-indigo-black (`#0A0A0F`/`#17171F`) rather than literal `#000000` — the original dark-mode tone
-this app launched with — tied together with light mode only by the shared accent color, which
-never changes between modes.
+shade deeper than a typical pastel so they still read as legible text against the app's pale
+surfaces, not just as icon tints. Light mode (the default) is a pale purple-pink background
+(`#FBEEFC`) with pure black text and white cards; dark mode inverts the text (pure white), and
+its background/card is a deep purple-black (`#1A0B24`/`#2A1633`) rather than a neutral dark tone
+— so the purple-pink identity carries through the surfaces themselves in both themes, not just
+the accent color. A `DotBackground` component (`src/components/DotBackground.tsx`) layers a
+subtle, session-stable scattered white-dot texture (SVG circles, `react-native-svg`) behind all
+content in both themes — mounted once in `App.tsx` (behind the main content and the
+auth-initializing loading screen) and once in `SplashScreen.tsx`, since every screen's own
+container is otherwise transparent and lets the single top-level background paint through.
 
 ## MVP scope
 
@@ -464,6 +468,8 @@ src/screens/AboutScreen.tsx          static app name/version/logo, per-tab expla
 src/screens/SplashScreen.tsx         brief fixed-duration launch screen — logo on the dark surface
 src/components/AppLogo.tsx           the app's real logo (assets/logo.jpg) — every place that shows the logo
                                       goes through here
+src/components/DotBackground.tsx     subtle scattered white-dot texture layered behind all content (both
+                                      themes) — mounted once in App.tsx + once in SplashScreen.tsx
 src/screens/MapScreen.tsx / .web.tsx world map: static react-native-webview embed (native) vs
                                       real MapLibre GL map + Nominatim place search + expense pins (web)
 src/components/TopBar.tsx            profile icon (opens the profile menu screen) + search icon (Map tab only)
