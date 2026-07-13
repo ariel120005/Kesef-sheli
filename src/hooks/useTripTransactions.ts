@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  CollectionReference,
   deleteDoc,
   doc,
   onSnapshot,
@@ -10,23 +11,33 @@ import {
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { db } from '../firebase';
-import { Currency, TripTransaction, TripTransactionType } from '../types';
+import { Currency, Trip, TripTransaction, TripTransactionType } from '../types';
 
-export function useTripTransactions(uid: string | null, tripId: string | null) {
+// A shared trip's transactions live under sharedTrips/{tripId}/transactions instead of
+// users/{uid}/trips/{tripId}/transactions — see useTrips.ts. Takes the full Trip (not just its
+// id) so it can tell which collection to read/write.
+export function useTripTransactions(uid: string | null, trip: Trip | null) {
   const [transactions, setTransactions] = useState<TripTransaction[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const tripId = trip?.id ?? null;
+  const isShared = !!trip?.isShared;
+
+  const getCollectionRef = useCallback((): CollectionReference | null => {
+    if (!db || !tripId) return null;
+    if (isShared) return collection(db, 'sharedTrips', tripId, 'transactions');
+    if (!uid) return null;
+    return collection(db, 'users', uid, 'trips', tripId, 'transactions');
+  }, [uid, tripId, isShared]);
 
   useEffect(() => {
-    if (!uid || !tripId || !db) {
+    const collectionRef = getCollectionRef();
+    if (!collectionRef) {
       setTransactions([]);
       setLoaded(true);
       return;
     }
     setLoaded(false);
-    const transactionsQuery = query(
-      collection(db, 'users', uid, 'trips', tripId, 'transactions'),
-      orderBy('date', 'desc')
-    );
+    const transactionsQuery = query(collectionRef, orderBy('date', 'desc'));
     const unsubscribe = onSnapshot(
       transactionsQuery,
       (snapshot) => {
@@ -41,7 +52,7 @@ export function useTripTransactions(uid: string | null, tripId: string | null) {
       () => setLoaded(true)
     );
     return unsubscribe;
-  }, [uid, tripId]);
+  }, [getCollectionRef]);
 
   const addTransaction = useCallback(
     async (
@@ -49,21 +60,28 @@ export function useTripTransactions(uid: string | null, tripId: string | null) {
       amount: number,
       note: string,
       originalAmount: number | null = null,
-      originalCurrency: Currency | null = null
+      originalCurrency: Currency | null = null,
+      paidByUid: string | null = null,
+      splitAmongUids: string[] | null = null
     ) => {
-      if (!uid || !tripId || !db) return;
-      await addDoc(collection(db, 'users', uid, 'trips', tripId, 'transactions'), {
+      const collectionRef = getCollectionRef();
+      if (!collectionRef) return;
+      await addDoc(collectionRef, {
         type,
         amount,
         note,
         date: new Date().toISOString(),
         originalAmount,
         originalCurrency,
+        paidByUid,
+        splitAmongUids,
       });
     },
-    [uid, tripId]
+    [getCollectionRef]
   );
 
+  // Split settings (paidByUid/splitAmongUids) are intentionally not editable after creation —
+  // this only ever touches the fields the edit modal actually exposes.
   const updateTransaction = useCallback(
     async (
       id: string,
@@ -73,24 +91,20 @@ export function useTripTransactions(uid: string | null, tripId: string | null) {
       originalAmount: number | null = null,
       originalCurrency: Currency | null = null
     ) => {
-      if (!uid || !tripId || !db) return;
-      await updateDoc(doc(db, 'users', uid, 'trips', tripId, 'transactions', id), {
-        type,
-        amount,
-        note,
-        originalAmount,
-        originalCurrency,
-      });
+      const collectionRef = getCollectionRef();
+      if (!collectionRef) return;
+      await updateDoc(doc(collectionRef, id), { type, amount, note, originalAmount, originalCurrency });
     },
-    [uid, tripId]
+    [getCollectionRef]
   );
 
   const deleteTransaction = useCallback(
     async (id: string) => {
-      if (!uid || !tripId || !db) return;
-      await deleteDoc(doc(db, 'users', uid, 'trips', tripId, 'transactions', id));
+      const collectionRef = getCollectionRef();
+      if (!collectionRef) return;
+      await deleteDoc(doc(collectionRef, id));
     },
-    [uid, tripId]
+    [getCollectionRef]
   );
 
   return { transactions, loaded, addTransaction, updateTransaction, deleteTransaction };

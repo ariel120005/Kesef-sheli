@@ -88,6 +88,10 @@ export const CATEGORY_COLOR_SWATCHES: string[] = [
 // Fallback for a category whose color is somehow missing (shouldn't normally happen).
 export const FALLBACK_CATEGORY_COLOR = '#6B7280';
 
+// Soft cap on how many people can join one shared trip (see "Shared trips" in CLAUDE.md) — keeps
+// the split/settlement UI readable, not a hard technical limit.
+export const MAX_TRIP_PARTICIPANTS = 5;
+
 export const SHADOW = {
   shadowColor: '#000000',
   shadowOffset: { width: 0, height: 8 },

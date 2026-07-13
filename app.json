@@ -20,6 +20,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "האפליקציה זקוקה לגישה למצלמה כדי לסרוק קודי QR להצטרפות לטיולים משותפים."
+        }
+      ]
+    ]
   }
 }

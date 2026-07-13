@@ -6,7 +6,10 @@ import { AddTripTransactionForm } from '../components/AddTripTransactionForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CreateTripModal } from '../components/CreateTripModal';
 import { EditTripTransactionModal } from '../components/EditTripTransactionModal';
+import { JoinTripModal } from '../components/JoinTripModal';
 import { TripCard } from '../components/TripCard';
+import { TripShareCard } from '../components/TripShareCard';
+import { TripSplitSummaryCard } from '../components/TripSplitSummaryCard';
 import { TripStatsCard } from '../components/TripStatsCard';
 import { TripSummaryCard } from '../components/TripSummaryCard';
 import { TripTransactionList } from '../components/TripTransactionList';
@@ -19,6 +22,7 @@ import { useTripTransactions } from '../hooks/useTripTransactions';
 import { useTrips } from '../hooks/useTrips';
 import { ThemeColors, useTheme } from '../theme';
 import { Currency, Trip, TripTransaction, TripTransactionType } from '../types';
+import { deriveDisplayName } from '../utils';
 
 // Each trip in the list needs its own live transactions to compute gross/net, so the
 // Firestore-backed list wraps every trip in its own component instance running its own
@@ -28,14 +32,18 @@ function FirestoreTripCard({
   trip,
   onPress,
   onDelete,
+  canDelete,
 }: {
   uid: string;
   trip: Trip;
   onPress: () => void;
   onDelete: () => void;
+  canDelete: boolean;
 }) {
-  const { transactions } = useTripTransactions(uid, trip.id);
-  return <TripCard trip={trip} transactions={transactions} onPress={onPress} onDelete={onDelete} />;
+  const { transactions } = useTripTransactions(uid, trip);
+  return (
+    <TripCard trip={trip} transactions={transactions} onPress={onPress} onDelete={onDelete} canDelete={canDelete} />
+  );
 }
 
 interface Props {
@@ -53,20 +61,23 @@ export function TripsScreen({ onBack }: Props) {
   const demo = useDemoBudgetData();
 
   const defaultCurrency = isFirebaseConfigured ? firestoreSettings.defaultCurrency : demo.defaultCurrency;
+  const currentUid = isFirebaseConfigured ? uid : demo.currentUid;
+  const defaultDisplayName = isFirebaseConfigured ? deriveDisplayName(user?.email) : 'אני';
 
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [joinModalVisible, setJoinModalVisible] = useState(false);
   const [pendingDeleteTrip, setPendingDeleteTrip] = useState<Trip | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<TripTransaction | null>(null);
   const [confirmingEndTrip, setConfirmingEndTrip] = useState(false);
-
-  const firestoreTripTransactions = useTripTransactions(uid, selectedTripId);
 
   const { trips, tripsLoaded } = isFirebaseConfigured
     ? { trips: firestoreTrips.trips, tripsLoaded: firestoreTrips.loaded }
     : { trips: demo.trips, tripsLoaded: true };
 
   const selectedTrip = trips.find((t) => t.id === selectedTripId) ?? null;
+
+  const firestoreTripTransactions = useTripTransactions(uid, selectedTrip);
 
   const transactions = isFirebaseConfigured
     ? firestoreTripTransactions.transactions
@@ -75,24 +86,52 @@ export function TripsScreen({ onBack }: Props) {
   const addTrip = (name: string, budget: number) =>
     isFirebaseConfigured ? firestoreTrips.addTrip(name, budget) : demo.addTrip(name, budget);
 
-  const deleteTrip = (id: string) =>
-    isFirebaseConfigured ? firestoreTrips.deleteTrip(id) : demo.deleteTrip(id);
+  const deleteTrip = (trip: Trip) =>
+    isFirebaseConfigured ? firestoreTrips.deleteTrip(trip) : demo.deleteTrip(trip.id);
 
-  const endTrip = (id: string) =>
-    isFirebaseConfigured ? firestoreTrips.endTrip(id) : demo.endTrip(id);
+  const endTrip = (trip: Trip) =>
+    isFirebaseConfigured ? firestoreTrips.endTrip(trip) : demo.endTrip(trip.id);
+
+  const makeTripShared = (trip: Trip, displayName: string) =>
+    isFirebaseConfigured ? firestoreTrips.makeTripShared(trip, displayName) : demo.makeTripShared(trip.id, displayName);
+
+  const joinTripByCode = (code: string, displayName: string) =>
+    isFirebaseConfigured ? firestoreTrips.joinTripByCode(code, displayName) : demo.joinTripByCode(code, displayName);
+
+  const canDeleteTrip = (trip: Trip) => !trip.isShared || trip.ownerUid === currentUid;
 
   const addTransaction = (
     type: TripTransactionType,
     amount: number,
     note: string,
     originalAmount: number | null,
-    originalCurrency: Currency | null
+    originalCurrency: Currency | null,
+    shared: boolean
   ) => {
-    if (!selectedTripId) return;
+    if (!selectedTripId || !selectedTrip) return;
+    const paidByUid = shared ? currentUid : null;
+    const splitAmongUids = shared ? (selectedTrip.participants ?? []).map((p) => p.uid) : null;
     if (isFirebaseConfigured) {
-      firestoreTripTransactions.addTransaction(type, amount, note, originalAmount, originalCurrency);
+      firestoreTripTransactions.addTransaction(
+        type,
+        amount,
+        note,
+        originalAmount,
+        originalCurrency,
+        paidByUid,
+        splitAmongUids
+      );
     } else {
-      demo.addTripTransaction(selectedTripId, type, amount, note, originalAmount, originalCurrency);
+      demo.addTripTransaction(
+        selectedTripId,
+        type,
+        amount,
+        note,
+        originalAmount,
+        originalCurrency,
+        paidByUid,
+        splitAmongUids
+      );
     }
   };
 
@@ -165,6 +204,15 @@ export function TripsScreen({ onBack }: Props) {
 
           <TripStatsCard trip={selectedTrip} transactions={transactions} />
 
+          <TripShareCard
+            trip={selectedTrip}
+            currentUid={currentUid ?? ''}
+            defaultDisplayName={defaultDisplayName}
+            onShare={(displayName) => makeTripShared(selectedTrip, displayName)}
+          />
+
+          <TripSplitSummaryCard trip={selectedTrip} transactions={transactions} currentUid={currentUid ?? ''} />
+
           {ended ? (
             <Text style={styles.endedNotice}>
               הטיול הסתיים — לא ניתן להוסיף תנועות חדשות, אך ניתן עדיין לצפות ולערוך את הקיימות.
@@ -176,7 +224,12 @@ export function TripsScreen({ onBack }: Props) {
                 <Text style={styles.endTripButtonText}>סיים טיול</Text>
               </Pressable>
 
-              <AddTripTransactionForm defaultCurrency={defaultCurrency} onAdd={addTransaction} />
+              <AddTripTransactionForm
+                defaultCurrency={defaultCurrency}
+                isSharedTrip={!!selectedTrip.isShared}
+                participantCount={selectedTrip.participants?.length ?? 0}
+                onAdd={addTransaction}
+              />
             </>
           )}
 
@@ -201,7 +254,7 @@ export function TripsScreen({ onBack }: Props) {
           onCancel={() => setConfirmingEndTrip(false)}
           onConfirm={() => {
             setConfirmingEndTrip(false);
-            endTrip(selectedTrip.id);
+            endTrip(selectedTrip);
           }}
         />
       </View>
@@ -229,17 +282,23 @@ export function TripsScreen({ onBack }: Props) {
           </Text>
         )}
 
-        <Pressable onPress={() => setCreateModalVisible(true)} style={styles.createButtonWrap}>
-          <LinearGradient
-            colors={GRADIENTS.primary}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.createButton}
-          >
-            <Ionicons name="add" size={20} color="#FFFFFF" />
-            <Text style={styles.createButtonText}>טיול חדש</Text>
-          </LinearGradient>
-        </Pressable>
+        <View style={styles.actionsRow}>
+          <Pressable onPress={() => setCreateModalVisible(true)} style={styles.actionButtonFlex}>
+            <LinearGradient
+              colors={GRADIENTS.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.createButton}
+            >
+              <Ionicons name="add" size={20} color="#FFFFFF" />
+              <Text style={styles.createButtonText}>טיול חדש</Text>
+            </LinearGradient>
+          </Pressable>
+          <Pressable onPress={() => setJoinModalVisible(true)} style={[styles.actionButtonFlex, styles.joinButtonOuter]}>
+            <Ionicons name="enter-outline" size={18} color={colors.text} />
+            <Text style={styles.joinButtonOuterText}>הצטרף לטיול</Text>
+          </Pressable>
+        </View>
 
         {trips.length === 0 ? (
           <Text style={styles.emptyText}>עדיין אין טיולים — צרו טיול חדש כדי להתחיל</Text>
@@ -251,6 +310,7 @@ export function TripsScreen({ onBack }: Props) {
               trip={trip}
               onPress={() => setSelectedTripId(trip.id)}
               onDelete={() => setPendingDeleteTrip(trip)}
+              canDelete={canDeleteTrip(trip)}
             />
           ))
         ) : (
@@ -261,6 +321,7 @@ export function TripsScreen({ onBack }: Props) {
               transactions={demo.transactionsByTrip[trip.id] ?? []}
               onPress={() => setSelectedTripId(trip.id)}
               onDelete={() => setPendingDeleteTrip(trip)}
+              canDelete={canDeleteTrip(trip)}
             />
           ))
         )}
@@ -272,6 +333,13 @@ export function TripsScreen({ onBack }: Props) {
         onSave={addTrip}
       />
 
+      <JoinTripModal
+        visible={joinModalVisible}
+        defaultDisplayName={defaultDisplayName}
+        onClose={() => setJoinModalVisible(false)}
+        onJoin={joinTripByCode}
+      />
+
       <ConfirmDialog
         visible={!!pendingDeleteTrip}
         title="מחיקת טיול"
@@ -279,7 +347,7 @@ export function TripsScreen({ onBack }: Props) {
         confirmLabel="מחיקה"
         onCancel={() => setPendingDeleteTrip(null)}
         onConfirm={() => {
-          if (pendingDeleteTrip) deleteTrip(pendingDeleteTrip.id);
+          if (pendingDeleteTrip) deleteTrip(pendingDeleteTrip);
           setPendingDeleteTrip(null);
         }}
       />
@@ -385,8 +453,13 @@ function getStyles(colors: ThemeColors) {
       textAlign: 'right',
       marginBottom: 24,
     },
-    createButtonWrap: {
+    actionsRow: {
+      flexDirection: 'row-reverse',
+      gap: 12,
       marginBottom: 20,
+    },
+    actionButtonFlex: {
+      flex: 1,
     },
     createButton: {
       flexDirection: 'row-reverse',
@@ -398,6 +471,22 @@ function getStyles(colors: ThemeColors) {
     },
     createButtonText: {
       color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: 15,
+    },
+    joinButtonOuter: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderRadius: 14,
+      paddingVertical: 15,
+      backgroundColor: colors.chipBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    joinButtonOuterText: {
+      color: colors.text,
       fontWeight: '700',
       fontSize: 15,
     },

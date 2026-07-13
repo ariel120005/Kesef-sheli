@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { MAX_TRIP_PARTICIPANTS } from '../constants';
+import { generateJoinCode } from '../debtSimplification';
 import {
   DEMO_BUDGET,
   DEMO_CATEGORIES,
+  DEMO_CURRENT_UID,
   DEMO_EXPENSES,
   DEMO_SAVINGS_GOAL,
   DEMO_TRIPS,
@@ -58,16 +61,21 @@ interface DemoBudgetData {
   resetAllData: () => void;
   trips: Trip[];
   transactionsByTrip: Record<string, TripTransaction[]>;
+  currentUid: string;
   addTrip: (name: string, budget: number) => void;
   deleteTrip: (id: string) => void;
   endTrip: (id: string) => void;
+  makeTripShared: (tripId: string, displayName: string) => Promise<{ success: boolean; message: string }>;
+  joinTripByCode: (code: string, displayName: string) => Promise<{ success: boolean; message: string }>;
   addTripTransaction: (
     tripId: string,
     type: TripTransactionType,
     amount: number,
     note: string,
     originalAmount?: number | null,
-    originalCurrency?: Currency | null
+    originalCurrency?: Currency | null,
+    paidByUid?: string | null,
+    splitAmongUids?: string[] | null
   ) => void;
   updateTripTransaction: (
     tripId: string,
@@ -193,13 +201,59 @@ export function DemoBudgetDataProvider({ children }: { children: React.ReactNode
     setTrips((prev) => prev.map((t) => (t.id === id ? { ...t, endedAt: new Date().toISOString() } : t)));
   };
 
+  const makeTripShared = (tripId: string, displayName: string) => {
+    setTrips((prev) =>
+      prev.map((t) =>
+        t.id === tripId
+          ? {
+              ...t,
+              isShared: true,
+              joinCode: generateJoinCode(),
+              ownerUid: DEMO_CURRENT_UID,
+              participants: [{ uid: DEMO_CURRENT_UID, displayName, joinedAt: new Date().toISOString() }],
+            }
+          : t
+      )
+    );
+    return Promise.resolve({ success: true, message: 'הטיול הפך למשותף' });
+  };
+
+  const joinTripByCode = (code: string, displayName: string) => {
+    const trip = trips.find((t) => t.isShared && t.joinCode === code.trim());
+    if (!trip) {
+      return Promise.resolve({ success: false, message: 'קוד לא נמצא — בדקו ונסו שוב' });
+    }
+    const participants = trip.participants ?? [];
+    // Demo mode simulates each join as a brand-new mock participant (see below), so uid can never
+    // collide — the closest equivalent of "already joined" here is reusing the same display name.
+    if (participants.some((p) => p.displayName.trim() === displayName.trim())) {
+      return Promise.resolve({ success: false, message: 'כבר יש משתתפ/ת עם השם הזה בטיול' });
+    }
+    if (participants.length >= MAX_TRIP_PARTICIPANTS) {
+      return Promise.resolve({ success: false, message: `הטיול הגיע למספר המשתתפים המרבי (${MAX_TRIP_PARTICIPANTS})` });
+    }
+    // Demo mode has no second real account to join from, so this simulates the join by adding a
+    // freshly-named mock participant instead of actually switching identity.
+    const newUid = `demo-joined-${Date.now()}`;
+    setTrips((prev) =>
+      prev.map((t) =>
+        t.id === trip.id
+          ? { ...t, participants: [...participants, { uid: newUid, displayName, joinedAt: new Date().toISOString() }] }
+          : t
+      )
+    );
+    return Promise.resolve({ success: true, message: `הצטרפת/ה לטיול "${trip.name}"` });
+  };
+
   const addTripTransaction = (
     tripId: string,
     type: TripTransactionType,
     amount: number,
     note: string,
     originalAmount: number | null = null,
-    originalCurrency: Currency | null = null
+    originalCurrency: Currency | null = null,
+    paidByUid: string | null = null,
+    splitAmongUids: string[] | null = null
   ) => {
     const tx: TripTransaction = {
       id: `demo-tx-${Date.now()}`,
@@ -209,6 +263,8 @@ export function DemoBudgetDataProvider({ children }: { children: React.ReactNode
       date: new Date().toISOString(),
       originalAmount,
       originalCurrency,
+      paidByUid,
+      splitAmongUids,
     };
     setTransactionsByTrip((prev) => ({ ...prev, [tripId]: [tx, ...(prev[tripId] ?? [])] }));
   };
@@ -281,9 +337,12 @@ export function DemoBudgetDataProvider({ children }: { children: React.ReactNode
         resetAllData,
         trips,
         transactionsByTrip,
+        currentUid: DEMO_CURRENT_UID,
         addTrip,
         deleteTrip,
         endTrip,
+        makeTripShared,
+        joinTripByCode,
         addTripTransaction,
         updateTripTransaction,
         deleteTripTransaction,

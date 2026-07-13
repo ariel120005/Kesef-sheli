@@ -12,9 +12,10 @@ interface Props {
   transactions: TripTransaction[];
   onPress: () => void;
   onDelete: () => void;
+  canDelete?: boolean;
 }
 
-export function TripCard({ trip, transactions, onPress, onDelete }: Props) {
+export function TripCard({ trip, transactions, onPress, onDelete, canDelete = true }: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
 
@@ -31,10 +32,18 @@ export function TripCard({ trip, transactions, onPress, onDelete }: Props) {
   return (
     <Pressable onPress={onPress} style={[styles.card, SHADOW]}>
       <View style={styles.headerRow}>
-        <Pressable onPress={onDelete} style={styles.deleteButton} hitSlop={8}>
-          <Ionicons name="trash-outline" size={16} color={colors.danger} />
-        </Pressable>
+        {canDelete && (
+          <Pressable onPress={onDelete} style={styles.deleteButton} hitSlop={8}>
+            <Ionicons name="trash-outline" size={16} color={colors.danger} />
+          </Pressable>
+        )}
         <Text style={styles.name}>{trip.name}</Text>
+        {trip.isShared && (
+          <View style={styles.sharedBadge}>
+            <Ionicons name="people" size={11} color={colors.accent} />
+            <Text style={styles.sharedBadgeText}>{trip.participants?.length ?? 1}</Text>
+          </View>
+        )}
         {!!trip.endedAt && (
           <View style={styles.endedBadge}>
             <Text style={styles.endedBadgeText}>הסתיים</Text>
@@ -85,6 +94,22 @@ function getStyles(colors: ThemeColors) {
       borderRadius: 8,
       padding: 4,
       backgroundColor: colors.deleteBackground,
+    },
+    sharedBadge: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: colors.chipBackground,
+      borderRadius: 20,
+      paddingVertical: 3,
+      paddingHorizontal: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    sharedBadgeText: {
+      color: colors.accent,
+      fontSize: 10,
+      fontWeight: '700',
     },
     endedBadge: {
       backgroundColor: colors.chipBackground,

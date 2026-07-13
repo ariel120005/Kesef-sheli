@@ -106,6 +106,15 @@ export interface NotificationSource {
   isPreset: boolean;
 }
 
+// One person in a shared trip (see Trip.participants below). `uid` is the Firebase Auth uid in
+// real accounts, or a synthetic id (e.g. 'demo-dana') in demo mode — either way it's what
+// TripTransaction.paidByUid/splitAmongUids reference.
+export interface TripParticipant {
+  uid: string;
+  displayName: string;
+  joinedAt: string; // ISO string
+}
+
 export interface Trip {
   id: string;
   name: string;
@@ -115,6 +124,13 @@ export interface Trip {
   // gross/net spend, days, daily average) becomes permanently viewable, and stays that way even
   // after the trip is closed (it never reverts to unset).
   endedAt?: string | null;
+  // A shared trip (see "Shared trips" in CLAUDE.md) — absent/false means a personal trip, the
+  // original (and still default) behavior. Once shared, `joinCode`/`ownerUid`/`participants` are
+  // always set; they never revert even if participants later leave (not supported yet).
+  isShared?: boolean;
+  joinCode?: string | null; // 6 digits, unique among currently-shared trips
+  ownerUid?: string | null; // who created the trip / turned it into a shared one
+  participants?: TripParticipant[];
 }
 
 export type TripTransactionType = 'expense' | 'reimbursement' | 'fee';
@@ -130,4 +146,11 @@ export interface TripTransaction {
   // converted ILS value, these preserve what was actually paid on the receipt.
   originalAmount?: number | null;
   originalCurrency?: Currency | null;
+  // Shared-expense splitting (see src/debtSimplification.ts) — only ever set on a 'expense'
+  // transaction inside a shared trip, when it was logged as "for everyone". paidByUid is who
+  // actually paid; splitAmongUids is a snapshot of the participant uids splitting it equally,
+  // taken at creation time so later joiners don't retroactively change past expenses' math.
+  // Both stay untouched (not editable) once the transaction is created.
+  paidByUid?: string | null;
+  splitAmongUids?: string[] | null;
 }

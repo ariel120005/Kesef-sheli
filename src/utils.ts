@@ -30,3 +30,12 @@ export function formatDate(isoDate: string): string {
   const d = new Date(isoDate);
   return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
+
+// A sensible default display name for a shared-trip participant, since accounts only have an
+// email today (no separate profile-name field) — the part before '@'. Still just a starting
+// point the user can edit before sharing/joining a trip.
+export function deriveDisplayName(email: string | null | undefined): string {
+  if (!email) return 'משתמש';
+  const local = email.split('@')[0];
+  return local || 'משתמש';
+}

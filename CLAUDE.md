@@ -4,8 +4,9 @@
 
 Android app built with React Native + Expo (managed workflow). Hebrew UI, RTL layout. Real user
 accounts via Firebase Authentication; data lives in Firestore (per-user), not just on-device, so
-it survives switching devices. A future goal (not implemented) is letting a partner share the
-same account's data.
+it survives switching devices. Trips can be shared with other accounts (join by code or QR — see
+"Shared trips" in MVP scope); sharing the rest of one account's data (budget, regular expenses)
+with a partner is still a future goal, not implemented.
 
 ## Stack
 
@@ -26,6 +27,10 @@ same account's data.
   place search (`MapScreen.web.tsx`); `react-native-webview` with a static world embed on native
   for now (`MapScreen.tsx`) until a future development build moves native to `react-native-maps` +
   Google Maps — see "Notes for future work".
+- Shared trips (see "Shared trips" in MVP scope): `react-native-qrcode-svg` (built on
+  `react-native-svg`, no native code — works on both native and web) renders a shared trip's join
+  code as a QR image; `expo-camera`'s `CameraView` (precompiled into Expo Go, native only —
+  `QRScannerModal.web.tsx` is the web fallback) scans one back on the joining side.
 
 ## MapTiler setup
 
@@ -82,17 +87,31 @@ and the UI shows a "Firebase לא מוגדר" message instead of crashing.
   (`DEFAULT_CATEGORIES` in `src/constants.ts`) the first time a `categories` snapshot for that
   account comes back empty and `categoriesInitialized` isn't set yet, so deleting down to zero
   categories afterwards doesn't silently reseed them.
-- `users/{uid}/trips/{tripId}` — one document per trip (`name`, `budget`, `createdAt`, optional
-  `endedAt`), a budget kept separate from the monthly budget above. `endedAt` is set once via
-  "סיים טיול" (see the Trips bullet under "App structure & navigation" below) and never cleared
-  afterwards — it's what makes a trip's summary (final gross/net/days/daily-average) permanently
-  viewable and is also how the bank-notification auto-detection routing (see "Bank-notification
-  auto-detection" in MVP scope below) decides whether a trip still counts as open.
-- `users/{uid}/trips/{tripId}/transactions/{autoId}` — one document per trip transaction
+- `users/{uid}/trips/{tripId}` — one document per **personal** (unshared) trip (`name`, `budget`,
+  `createdAt`, optional `endedAt`), a budget kept separate from the monthly budget above. `endedAt`
+  is set once via "סיים טיול" (see the Trips bullet under "App structure & navigation" below) and
+  never cleared afterwards — it's what makes a trip's summary (final gross/net/days/daily-average)
+  permanently viewable and is also how the bank-notification auto-detection routing (see
+  "Bank-notification auto-detection" in MVP scope below) decides whether a trip still counts as
+  open. Once a trip is turned shared (see "Shared trips" below), its document (and transactions)
+  move out of here into a top-level `sharedTrips/{tripId}` and this copy is deleted.
+- `users/{uid}/trips/{tripId}/transactions/{autoId}` — one document per personal-trip transaction
   (`type`: `'expense' | 'reimbursement' | 'fee'`, `amount`, `note`, `date`, optional
-  `autoDetected`, optional `originalAmount`/`originalCurrency`). `reimbursement` transactions
-  (money received back, e.g. via Bit) offset net trip spending rather than counting as a
-  separate expense; `fee` is its own type so cash-withdrawal fees don't pollute expense totals.
+  `autoDetected`, optional `originalAmount`/`originalCurrency`, optional `paidByUid`/
+  `splitAmongUids` — always null here since a personal trip has no participants).
+  `reimbursement` transactions (money received back, e.g. via Bit) offset net trip spending rather
+  than counting as a separate expense; `fee` is its own type so cash-withdrawal fees don't
+  pollute expense totals.
+- `sharedTrips/{tripId}` — one document per **shared** trip (see "Shared trips" below), same shape
+  as a personal trip plus `isShared: true`, `joinCode` (6 digits), `ownerUid` (who created it),
+  `participants` (`TripParticipant[]`: `uid`/`displayName`/`joinedAt`), and `participantUids`
+  (the same uids as a flat string array, purely so Firestore can query
+  `where('participantUids', 'array-contains', uid)` — array fields of objects can't be queried
+  into directly). Top-level, not nested under any single `users/{uid}`, since that's the only way
+  a second account can ever see it — `useTrips.ts` merges this collection with the caller's own
+  `users/{uid}/trips` into one flat `trips` list.
+- `sharedTrips/{tripId}/transactions/{autoId}` — same shape as a personal trip's transactions,
+  plus real `paidByUid`/`splitAmongUids` on any expense logged "for everyone" (see "Shared trips").
 
 ### Firestore security rules (set these in the Firebase Console)
 
@@ -113,6 +132,27 @@ service cloud.firestore {
         match /transactions/{transactionId} {
           allow read, write: if request.auth != null && request.auth.uid == userId;
         }
+      }
+    }
+    // Shared trips (see "Shared trips" below) live outside any one user's own subtree, since
+    // that's the only way a second account can ever read/write them. Read is open to any signed-in
+    // user — needed both for the "my shared trips" array-contains query and for looking a trip up
+    // by its join code before you're a participant yet, exactly like a Splitwise/Discord-style
+    // invite code; write is restricted to existing participants, plus one narrow carve-out letting
+    // a non-participant join by adding *only themselves* (and nothing else) to the trip.
+    match /sharedTrips/{tripId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerUid;
+      allow update: if request.auth != null && (
+        request.auth.uid in resource.data.participantUids ||
+        (request.auth.uid in request.resource.data.participantUids &&
+         !(request.auth.uid in resource.data.participantUids) &&
+         request.resource.data.participantUids.size() == resource.data.participantUids.size() + 1)
+      );
+      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerUid;
+      match /transactions/{transactionId} {
+        allow read, write: if request.auth != null &&
+          request.auth.uid in get(/databases/$(database)/documents/sharedTrips/$(tripId)).data.participantUids;
       }
     }
   }
@@ -216,7 +256,17 @@ menu). See the two `useEffect`s and `replaceOverlay` near the top of `AppContent
     final net spend, trip length in days, and net spend per day) whenever the trip is reopened
     afterwards — `endedAt` is never cleared. Once ended, the add-transaction form is hidden (no
     new transactions), but the existing transaction list stays viewable/editable, and both the
-    trip list card and the detail header show an "הסתיים" badge. Multiple currencies within the
+    trip list card and the detail header show an "הסתיים" badge. **Shared trips** (Splitwise-style
+    — see the "Shared trips" MVP-scope bullet below for the full data flow) are the same screen: an
+    unshared trip's detail view shows a `TripShareCard.tsx` with a "הפוך למשותף" button; a shared
+    one shows the 6-digit join code (as digits and a `react-native-qrcode-svg` QR image, plus a
+    native `Share.share()` button) and the participant list instead, and a `TripSplitSummaryCard.tsx`
+    beneath it (per-participant paid/share/balance, plus the simplified settlement transfers from
+    `src/debtSimplification.ts`). The trip list's top row also has a **"הצטרף לטיול"** button
+    (`JoinTripModal.tsx`) — enter a 6-digit code manually, or tap "סרוק QR" to scan one with the
+    camera (`QRScannerModal.tsx`/`.web.tsx`, see below). Only the trip's owner (or, in demo mode,
+    always — see below) sees the delete-trip icon on a shared trip, so one participant can't
+    unilaterally delete it out from under everyone else. Multiple currencies within the
     same trip are already supported without any special handling — every transaction stores its
     own `originalAmount`/`originalCurrency` independent of the others (see "Foreign-currency
     entry" in MVP scope below), and the trip's gross/net/summary totals are always summed from the
@@ -365,6 +415,44 @@ own container is otherwise transparent and lets the single top-level background 
   fees (kept out of expense category totals), and `reimbursement` transactions for money
   received back (e.g. via Bit) — reimbursements offset net spend rather than counting as an
   expense. The trip screen shows gross spend, total reimbursed, net spend, and remaining budget.
+- Shared trips (Splitwise-style group expense splitting): any trip can be turned shared via a
+  **"הפוך למשותף"** button (`TripShareCard.tsx`), which generates a unique 6-digit `joinCode` and
+  makes the current user its first participant (`ownerUid`). Other people join via **"הצטרף
+  לטיול"** on the trip list (`JoinTripModal.tsx`) by entering that code manually, or by scanning a
+  QR image of it (`QRScannerModal.tsx` on native, via `expo-camera`'s `CameraView` with barcode
+  scanning; `QRScannerModal.web.tsx` explains that live QR scanning needs a real camera module and
+  points back to manual entry, since the web preview has none) — capped at
+  `MAX_TRIP_PARTICIPANTS` (5, `src/constants.ts`) participants, a soft UI limit rather than a hard
+  technical one. Any participant can log an `expense` transaction as **"הוצאה משותפת"** (a checkbox
+  on `AddTripTransactionForm.tsx`, shown only for `type === 'expense'` on a shared trip) — this
+  sets `paidByUid` (who actually paid, always the person logging it) and `splitAmongUids` (a
+  snapshot of every participant's uid *at that moment*, so a later joiner doesn't retroactively
+  change the math on expenses logged before they joined) on the transaction; an expense logged
+  without the checkbox stays personal/unsplit, exactly like a transaction on a non-shared trip.
+  `src/debtSimplification.ts`'s `computeTripBalances` sums, per participant, how much they paid
+  toward shared expenses vs. their equal share of them (`balance = paid − share`); `simplifyDebts`
+  then reduces those balances to the *minimum* number of transfers that settles everyone up
+  (Splitwise's classic greedy largest-creditor/largest-debtor matching — e.g. "A owes B 50, B owes
+  C 50" collapses into one transfer, "A pays C 50", instead of two), shown in
+  `TripSplitSummaryCard.tsx` alongside each participant's own paid/share/balance numbers. `fee`
+  and `reimbursement` transactions, and any non-split `expense`, stay outside this math entirely —
+  they still count toward the trip's overall gross/net stats (`TripStatsCard.tsx`, unaffected by
+  any of this) but aren't part of who-owes-who. Only the trip's owner can delete a shared trip
+  (`TripsScreen.tsx`'s `canDeleteTrip`, comparing `trip.ownerUid` against the signed-in uid) so one
+  participant can't unilaterally remove it for everyone; split settings themselves aren't editable
+  after a transaction is created (`EditTripTransactionModal.tsx` was deliberately left untouched —
+  only type/amount/currency/note are editable, to keep the scope of what "editing" can silently
+  change to the split math bounded). Since accounts have no separate profile-name field today,
+  `deriveDisplayName` (`src/utils.ts`) suggests the part of the email before `@` as a starting
+  display name wherever one is needed (sharing or joining) — always editable before submitting.
+  Demo mode ships one trip (טיול לאילת) pre-shared with 3 mock participants and a mix of
+  paid-by/split expenses (`DEMO_TRIP_PARTICIPANTS`/updated `DEMO_TRIP_TRANSACTIONS` in
+  `src/demoData.ts`) so the balance/settlement UI has real non-trivial numbers to show without
+  needing a second account; `useDemoBudgetData.tsx`'s `joinTripByCode` simulates joining by adding
+  a freshly-named mock participant (there's no second real account to switch to in one browser
+  tab), and `makeTripShared` works the same as the real-mode version, just entirely in memory. See
+  the Firestore data model above for how a shared trip's storage (`sharedTrips/{tripId}`, a
+  top-level collection instead of nested under one user) differs from a personal trip's.
 - Bank-notification auto-detection basis: `src/bankNotificationParser.ts` has pure, dependency-free
   functions (`parseBankNotification`, `guessCategoryFromMerchant`) that parse Hebrew bank-app
   notification text into a charge (→ expense, category guessed from merchant) or a credit (→
@@ -421,8 +509,12 @@ icon/button with a label. This keeps behavior predictable when testing live in E
 ```
 App.tsx                              splash-screen gate + ThemeProvider + AuthProvider + DemoBudgetDataProvider +
                                       tab/overlay-stack switching + browser-history back-navigation sync (web)
-src/types.ts                         Expense, Category, CategoryDef, TabKey, OverlayScreen, Trip, TripTransaction types
-src/constants.ts                     DEFAULT_CATEGORIES, CATEGORY_COLOR_SWATCHES, BRAND/DARK_COLORS/LIGHT_COLORS, gradients
+src/types.ts                         Expense, Category, CategoryDef, TabKey, OverlayScreen, Trip, TripParticipant,
+                                      TripTransaction types
+src/constants.ts                     DEFAULT_CATEGORIES, CATEGORY_COLOR_SWATCHES, BRAND/DARK_COLORS/LIGHT_COLORS,
+                                      gradients, MAX_TRIP_PARTICIPANTS
+src/debtSimplification.ts            pure functions: computeTripBalances, simplifyDebts (Splitwise-style greedy
+                                      min-transfer settlement), generateJoinCode — see "Shared trips" in MVP scope
 src/theme.tsx                        ThemeProvider/useTheme (dark/light, persisted)
 src/firebaseConfig.ts                reads EXPO_PUBLIC_FIREBASE_* env vars
 src/firebase.ts / firebase.web.ts    platform-specific Firebase app/auth/db init
@@ -437,9 +529,15 @@ src/hooks/useSavingsGoal.ts          Firestore-backed savings goal (onSnapshot, 
 src/hooks/useCategories.ts           Firestore-backed categories (onSnapshot, add/update/delete, lazy default-seeding)
 src/hooks/useAppSettings.ts          Firestore-backed defaultCurrency + monthStartDay (onSnapshot, update)
 src/hooks/useDemoBudgetData.tsx      DemoBudgetDataProvider/useDemoBudgetData — shared demo expenses/budget/goal/
-                                      categories/defaultCurrency/monthStartDay/trips state
-src/hooks/useTrips.ts                Firestore-backed trips (onSnapshot, add, delete, endTrip)
-src/hooks/useTripTransactions.ts     Firestore-backed transactions for one trip (onSnapshot, add, update, delete)
+                                      categories/defaultCurrency/monthStartDay/trips/currentUid state, incl. demo
+                                      makeTripShared/joinTripByCode
+src/hooks/useTrips.ts                Firestore-backed trips — merges personal (users/{uid}/trips) + shared
+                                      (sharedTrips, array-contains query) into one list; add/delete/endTrip,
+                                      makeTripShared (migrates a personal trip + its transactions into sharedTrips),
+                                      joinTripByCode (looks a trip up by joinCode, adds the caller as a participant)
+src/hooks/useTripTransactions.ts     Firestore-backed transactions for one trip — takes the full Trip (not just its
+                                      id) to route reads/writes to sharedTrips/{id} vs users/{uid}/trips/{id} based
+                                      on trip.isShared; add/update/delete
 src/insights.ts                      rule-based Hebrew insight generator (no LLM call), month-start-day aware
 src/recurring.ts                     finds which recurring expenses need this month's copy
 src/bankNotificationParser.ts        pure text parsing: bank notification → charge/credit, merchant → category
@@ -487,13 +585,25 @@ src/components/CategoryDonutChart.tsx per-category totals for the current month 
 src/components/ExpenseList.tsx       recent expenses, tap to edit, delete button
 src/components/ConfirmDialog.tsx     custom confirm modal (Alert.alert is a no-op on web)
 src/components/CreateTripModal.tsx   trip creation form (name + budget)
-src/components/TripCard.tsx          trip list-item summary (gross/net/budget bar)
+src/components/TripCard.tsx          trip list-item summary (gross/net/budget bar), shared-trip participant-count
+                                      badge, canDelete-gated delete icon
 src/components/TripStatsCard.tsx     trip detail stats (gross, reimbursed, net, budget, remaining)
 src/components/TripSummaryCard.tsx   permanent post-trip summary (gross, reimbursed, net, days, daily average) —
                                       renders once trip.endedAt is set, via "סיים טיול"
-src/components/AddTripTransactionForm.tsx  type chips (הוצאה/החזר/עמלה) + amount/currency/note + add
+src/components/TripShareCard.tsx     "הפוך למשותף" prompt (unshared trip) or join code + QR image + share button +
+                                      participant list (shared trip) — see "Shared trips" in MVP scope
+src/components/TripSplitSummaryCard.tsx  per-participant paid/share/balance + simplified settlement transfers,
+                                      built on src/debtSimplification.ts
+src/components/JoinTripModal.tsx     "הצטרף לטיול" modal: 6-digit code entry (manual or via QRScannerModal) +
+                                      display-name field
+src/components/QRScannerModal.tsx / .web.tsx  native camera QR scanner (expo-camera CameraView) vs a web fallback
+                                      explaining that live QR scanning needs a real camera module
+src/components/AddTripTransactionForm.tsx  type chips (הוצאה/החזר/עמלה) + amount/currency/note + add; on a shared
+                                      trip, an extra "הוצאה משותפת" checkbox (type==='expense' only) that snapshots
+                                      paidByUid/splitAmongUids onto the transaction
 src/components/TripTransactionList.tsx     trip transactions list, tap to edit, delete button
-src/components/EditTripTransactionModal.tsx edit an existing trip transaction's type/amount/currency/note
+src/components/EditTripTransactionModal.tsx edit an existing trip transaction's type/amount/currency/note (split
+                                      settings are intentionally not editable here — see "Shared trips")
 ```
 
 ## Commands
@@ -505,7 +615,12 @@ src/components/EditTripTransactionModal.tsx edit an existing trip transaction's 
 
 ## Notes for future work (post-MVP, not implemented)
 
-- Sharing one account's data with a partner (e.g. a shared household doc instead of per-uid).
+- Sharing the *rest* of one account's data with a partner (budget, regular expenses, categories —
+  a shared household doc instead of per-uid); trips specifically are already shareable (see
+  "Shared trips" in MVP scope).
+- Shared-trip participants leaving/being removed after joining, and editing a transaction's
+  split settings (paidByUid/splitAmongUids) after creation — both deliberately out of scope for
+  now to keep the debt math predictable.
 - Upgrading the AI insights from local heuristics to a real Claude API call, via a Firebase Cloud
   Function (Blaze plan) that holds the Anthropic API key server-side.
 - Month picker / history across months.

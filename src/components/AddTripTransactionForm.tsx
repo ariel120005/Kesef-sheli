@@ -9,12 +9,15 @@ import { CurrencyPicker } from './CurrencyPicker';
 
 interface Props {
   defaultCurrency?: Currency | 'ILS';
+  isSharedTrip?: boolean;
+  participantCount?: number;
   onAdd: (
     type: TripTransactionType,
     amount: number,
     note: string,
     originalAmount: number | null,
-    originalCurrency: Currency | null
+    originalCurrency: Currency | null,
+    shared: boolean
   ) => void;
 }
 
@@ -24,7 +27,12 @@ const TYPE_OPTIONS: { key: TripTransactionType; label: string }[] = [
   { key: 'fee', label: 'עמלה' },
 ];
 
-export function AddTripTransactionForm({ defaultCurrency = 'ILS', onAdd }: Props) {
+export function AddTripTransactionForm({
+  defaultCurrency = 'ILS',
+  isSharedTrip = false,
+  participantCount = 0,
+  onAdd,
+}: Props) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const [type, setType] = useState<TripTransactionType>('expense');
@@ -33,6 +41,8 @@ export function AddTripTransactionForm({ defaultCurrency = 'ILS', onAdd }: Props
   const [currency, setCurrency] = useState<Currency | 'ILS'>(defaultCurrency);
   const [rate, setRate] = useState<number | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
+  const [shared, setShared] = useState(true);
+  const showSharedToggle = isSharedTrip && type === 'expense';
 
   useEffect(() => {
     if (currency === 'ILS') {
@@ -58,11 +68,12 @@ export function AddTripTransactionForm({ defaultCurrency = 'ILS', onAdd }: Props
 
   const handleSubmit = () => {
     if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) return;
+    const isShared = showSharedToggle && shared;
     if (currency !== 'ILS') {
       if (!rate) return;
-      onAdd(type, parsedAmount * rate, note.trim(), parsedAmount, currency);
+      onAdd(type, parsedAmount * rate, note.trim(), parsedAmount, currency, isShared);
     } else {
-      onAdd(type, parsedAmount, note.trim(), null, null);
+      onAdd(type, parsedAmount, note.trim(), null, null, isShared);
     }
     setAmount('');
     setNote('');
@@ -135,6 +146,17 @@ export function AddTripTransactionForm({ defaultCurrency = 'ILS', onAdd }: Props
         onChangeText={setNote}
         textAlign="right"
       />
+
+      {showSharedToggle && (
+        <Pressable style={styles.sharedToggle} onPress={() => setShared((prev) => !prev)}>
+          <View style={[styles.checkbox, shared && styles.checkboxChecked]}>
+            {shared && <Text style={styles.checkboxMark}>✓</Text>}
+          </View>
+          <Text style={styles.sharedToggleText}>
+            הוצאה משותפת — מתחלקת שווה בשווה בין {participantCount} משתתפים
+          </Text>
+        </Pressable>
+      )}
 
       <Pressable onPress={handleSubmit}>
         <LinearGradient
@@ -213,6 +235,36 @@ function getStyles(colors: ThemeColors) {
     conversionText: {
       color: colors.subtext,
       fontSize: 13,
+      textAlign: 'right',
+    },
+    sharedToggle: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 18,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxChecked: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+    },
+    checkboxMark: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '800',
+    },
+    sharedToggleText: {
+      color: colors.text,
+      fontSize: 13,
+      flex: 1,
       textAlign: 'right',
     },
     submitButton: {

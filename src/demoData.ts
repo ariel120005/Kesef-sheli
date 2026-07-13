@@ -1,5 +1,9 @@
 import { DEFAULT_CATEGORIES } from './constants';
-import { CategoryDef, Expense, Trip, TripTransaction } from './types';
+import { CategoryDef, Expense, Trip, TripParticipant, TripTransaction } from './types';
+
+// The "you" identity in demo mode — matches Trip.ownerUid on the demo shared trip below and is
+// what TripsScreen treats as the signed-in user's uid for split/settlement math and permissions.
+export const DEMO_CURRENT_UID = 'demo-me';
 
 // Fixed day-of-month (not "N days ago") so every sample always lands in the
 // current/previous calendar month, regardless of which day it's viewed on.
@@ -7,6 +11,13 @@ function dayOfMonth(monthOffset: number, day: number): string {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth() + monthOffset, day, 10, 0, 0).toISOString();
 }
+
+export const DEMO_TRIP_PARTICIPANTS: TripParticipant[] = [
+  { uid: 'demo-me', displayName: 'אני', joinedAt: dayOfMonth(0, 1) },
+  { uid: 'demo-dana', displayName: 'דנה', joinedAt: dayOfMonth(0, 1) },
+  { uid: 'demo-roi', displayName: 'רועי', joinedAt: dayOfMonth(0, 1) },
+  { uid: 'demo-maya', displayName: 'מאיה', joinedAt: dayOfMonth(0, 2) },
+];
 
 export const DEMO_BUDGET = 4500;
 export const DEMO_SAVINGS_GOAL = 2000;
@@ -73,7 +84,18 @@ export const DEMO_EXPENSES: Expense[] = [
 ];
 
 export const DEMO_TRIPS: Trip[] = [
-  { id: 'demo-trip-1', name: 'טיול לאילת', budget: 2000, createdAt: dayOfMonth(0, 1) },
+  {
+    id: 'demo-trip-1',
+    name: 'טיול לאילת',
+    budget: 2000,
+    createdAt: dayOfMonth(0, 1),
+    // Shared out of the box, with 3 mock participants beyond "אני", so the split/settlement UI
+    // has something real to show without needing to actually join a second account first.
+    isShared: true,
+    joinCode: '482913',
+    ownerUid: DEMO_CURRENT_UID,
+    participants: DEMO_TRIP_PARTICIPANTS,
+  },
   {
     id: 'demo-trip-2',
     name: 'טיול בדרום מזרח אסיה',
@@ -86,11 +108,46 @@ export const DEMO_TRIPS: Trip[] = [
 ];
 
 export const DEMO_TRIP_TRANSACTIONS: Record<string, TripTransaction[]> = {
+  // Shared trip: expenses paid by different participants and split equally among all 4, so the
+  // balance/settlement math (src/debtSimplification.ts) has non-trivial multi-way debts to show —
+  // "אני" and "רועי" end up owed money, "דנה" and "מאיה" end up owing.
   'demo-trip-1': [
-    { id: 'demo-tx-1', type: 'expense', amount: 450, note: 'מלון', date: dayOfMonth(0, 2) },
-    { id: 'demo-tx-2', type: 'expense', amount: 180, note: 'ארוחת ערב', date: dayOfMonth(0, 3) },
-    { id: 'demo-tx-3', type: 'fee', amount: 15, note: 'עמלת משיכה', date: dayOfMonth(0, 3) },
-    { id: 'demo-tx-4', type: 'reimbursement', amount: 200, note: 'החזר מדני על המלון', date: dayOfMonth(0, 4) },
+    {
+      id: 'demo-tx-1',
+      type: 'expense',
+      amount: 450,
+      note: 'מלון',
+      date: dayOfMonth(0, 2),
+      paidByUid: 'demo-me',
+      splitAmongUids: ['demo-me', 'demo-dana', 'demo-roi', 'demo-maya'],
+    },
+    {
+      id: 'demo-tx-2',
+      type: 'expense',
+      amount: 180,
+      note: 'ארוחת ערב',
+      date: dayOfMonth(0, 3),
+      paidByUid: 'demo-dana',
+      splitAmongUids: ['demo-me', 'demo-dana', 'demo-roi', 'demo-maya'],
+    },
+    { id: 'demo-tx-3', type: 'fee', amount: 15, note: 'עמלת משיכה', date: dayOfMonth(0, 3), paidByUid: 'demo-me' },
+    {
+      id: 'demo-tx-4',
+      type: 'expense',
+      amount: 240,
+      note: 'דלק לרכב השכור',
+      date: dayOfMonth(0, 3),
+      paidByUid: 'demo-roi',
+      splitAmongUids: ['demo-me', 'demo-dana', 'demo-roi', 'demo-maya'],
+    },
+    {
+      id: 'demo-tx-4b',
+      type: 'reimbursement',
+      amount: 100,
+      note: 'החזר ביטוח נסיעות',
+      date: dayOfMonth(0, 4),
+      paidByUid: 'demo-me',
+    },
   ],
   // Mixes three currencies across the same trip (USD/VND early on in Vietnam, THB later in
   // Thailand) — every transaction keeps its own original amount+currency, while the trip's
