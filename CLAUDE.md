@@ -457,10 +457,22 @@ own container is otherwise transparent and lets the single top-level background 
   functions (`parseBankNotification`, `guessCategoryFromMerchant`) that parse Hebrew bank-app
   notification text into a charge (→ expense, category guessed from merchant) or a credit (→
   reimbursement, same concept as trip mode; Bit's "מחכים לך" pending-transfer wording counts as an
-  immediate credit too, not just an already-confirmed "קיבלת"/"התקבל"). Notifications that glue
-  Hebrew and Latin/digit text together with no space at all (seen on a real device — e.g. "בית
-  עסקKING MEAT... בסך155.0 שח") are handled by inserting a space at every Hebrew↔Latin/digit
-  script boundary before parsing. `guessCategoryFromMerchant` matches merchant-name keywords
+  immediate credit too, not just an already-confirmed "קיבלת"/"התקבל"). Also covers Pepper's
+  2nd-person "הוצאת... בכרטיס האשראי" charge wording, generic bank credit phrasing ("נכנס/ה/ו לך")
+  with no sender name at all, and Bit's outgoing-transfer confirmation ("העברה שביצעת ל<name>...
+  הושלמה") — distinct from CREDIT_KEYWORDS' "העברה אליך" (a transfer *to* you), this one is money
+  *you* sent, so it's a charge. A notification that's clearly a recognized charge/credit but has no
+  extractable amount at all (e.g. a bare "נכנסה לך משכורת", no number anywhere in the text) still
+  returns a result instead of failing silently — `ParsedBankNotification.amount` is `number | null`,
+  and `null` means "recognized, but needs the amount filled in by hand"; the parse-test screen shows
+  "לא ידוע — נדרשת השלמה ידנית" for it and the demo record-creation button explains why nothing was
+  created rather than silently doing nothing. Notifications that glue
+  Hebrew and Latin/digit text together with no space at all (seen on real devices — e.g. Isracard's
+  "בית עסקKING MEAT... בסך155.0 שח" or Pepper's "בSHUK HAIIM HATOVIM") are handled by inserting a
+  space at every Hebrew↔Latin/digit script boundary before parsing; the resulting "ב SHUK..." is
+  matched by a merchant pattern anchored on a capital Latin letter right after "ב " specifically —
+  narrow enough to never fire on the countless ordinary Hebrew words that start with the same
+  "in/at" prefix. `guessCategoryFromMerchant` matches merchant-name keywords
   (Hebrew and English — e.g. `meat`/`food`/`wolt`) against a fixed default-category→keywords
   table, picking the *longest* matching keyword across all buckets (not the first bucket in list
   order) so a more specific compound name like "סופר פארם" isn't shadowed by a shorter generic

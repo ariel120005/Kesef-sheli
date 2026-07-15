@@ -21,6 +21,16 @@ const EXAMPLES = [
   'התקבלה העברה לחשבונך בסך 500 ש"ח מרונית לוי',
   'מחכים לך 75 ש"ח מדני כהן בביט',
   'היי, ביקשת שנעדכן אותך על עסקאות בסכום גבוה: היום 06/07 בית עסקKING MEAT חייב את כרטיסך בסך155.0 שח כדאי לעקוב אחר החיובים כאן:',
+  // Real templates collected from Pepper, the bank, and Bit — see CLAUDE.md's bank-notification
+  // bullet for the exact patterns each one exercises (Pepper's "הוצאת" wording + a glued-on Latin
+  // merchant name, a generic bank credit with no sender, a credit with no amount at all, Bit's
+  // outgoing "העברה שביצעת" charge, and a sender-less "מחכים לך" credit).
+  'PEPPER\nהיי אריאל הוצאת עכשיו בכרטיס האשראי 13.8 ש"ח בSHUK HAIIM HATOVIM',
+  'היי אריאל נכנסו לך 500 ש"ח',
+  'היי אריאל נכנסה לך משכורת',
+  'היי אריאל קיבלת 1200 ש"ח מהפועלים',
+  'העברה שביצעת לשלמה בסך 75 ש"ח הושלמה בהצלחה',
+  'מחכים לך 150 ש"ח בביט נא אשר בתוך 3 ימי עסקים',
 ];
 
 export function ParseTestScreen({ onBack }: Props) {
@@ -56,6 +66,12 @@ export function ParseTestScreen({ onBack }: Props) {
   // more than one happens to be open at once.
   const handleCreate = () => {
     if (!result || result === 'notChecked' || isFirebaseConfigured) return;
+    if (result.amount === null) {
+      setCreationMessage(
+        'לא ניתן ליצור רשומה אוטומטית — הסכום לא זוהה בהתראה זו, יש להוסיף אותו ידנית דרך הוצאה/תנועה רגילה.'
+      );
+      return;
+    }
     const activeTrip = [...demo.trips]
       .filter((t) => !t.endedAt)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
@@ -135,7 +151,10 @@ export function ParseTestScreen({ onBack }: Props) {
             ) : (
               <>
                 <ResultRow label="סוג" value={result.kind === 'charge' ? 'חיוב' : 'זיכוי'} />
-                <ResultRow label="סכום" value={formatCurrency(result.amount)} />
+                <ResultRow
+                  label="סכום"
+                  value={result.amount !== null ? formatCurrency(result.amount) : 'לא ידוע — נדרשת השלמה ידנית'}
+                />
                 <ResultRow
                   label={result.kind === 'charge' ? 'בית עסק' : 'שולח'}
                   value={result.merchant ?? 'לא זוהה'}

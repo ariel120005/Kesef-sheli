@@ -14,11 +14,28 @@ export type BankNotificationKind = 'charge' | 'credit';
 
 export interface ParsedBankNotification {
   kind: BankNotificationKind;
-  amount: number;
+  // null means the text was clearly recognized as a charge/credit (matched a keyword below) but
+  // no amount could be extracted from it (e.g. a plain "נכנסה לך משכורת" salary notification with
+  // no number in the text at all) — surfaced to the UI as "needs manual entry" rather than
+  // silently discarding an otherwise-real notification just because it lacks a number.
+  amount: number | null;
   merchant: string | null;
 }
 
-const CHARGE_KEYWORDS = ['חיוב', 'חויב', 'חויבת', 'עסקה', 'רכישה', 'בוצע חיוב', 'חיוב בכרטיס'];
+const CHARGE_KEYWORDS = [
+  'חיוב',
+  'חויב',
+  'חויבת',
+  'עסקה',
+  'רכישה',
+  'בוצע חיוב',
+  'חיוב בכרטיס',
+  // Pepper-style "הוצאת... בכרטיס האשראי" (2nd person: "you spent") and Bit's outgoing-transfer
+  // confirmation ("the transfer YOU made was completed" — as opposed to CREDIT_KEYWORDS' "העברה
+  // אליך", a transfer made TO you).
+  'הוצאת',
+  'העברה שביצעת',
+];
 const CREDIT_KEYWORDS = [
   'זיכוי',
   'זוכית',
@@ -34,6 +51,12 @@ const CREDIT_KEYWORDS = [
   // manually accepted yet — treated as an immediate credit rather than waiting for a separate
   // confirmation notification, since in practice the money is already earmarked for the account.
   'מחכים לך',
+  // Generic bank-app phrasing for money arriving, e.g. "נכנסו לך 500 ש\"ח" or "נכנסה לך משכורת"
+  // (different conjugation depending on the Hebrew noun's gender/plurality — the amount itself,
+  // or a word like "משכורת"/"קצבה").
+  'נכנס לך',
+  'נכנסה לך',
+  'נכנסו לך',
 ];
 
 // Israeli bank/card apps sometimes glue Hebrew and Latin/digit text together with no space at
@@ -65,7 +88,16 @@ const MERCHANT_PATTERNS = [
   new RegExp(String.raw`בבית\s*ה?עסק\s*:?\s*(.+?)${NAME_STOP}`),
   new RegExp(String.raw`בית\s*ה?עסק\s*:?\s*(.+?)${NAME_STOP}`),
   new RegExp(String.raw`אצל\s+(.+?)${NAME_STOP}`),
+  // Bit's outgoing-transfer confirmation: "העברה שביצעת לשלמה בסך 75 ש\"ח הושלמה בהצלחה" —
+  // the recipient follows "שביצעת ל" specifically, not a bare "ל" (far too common a Hebrew
+  // prefix on its own to safely anchor a name extraction on).
+  new RegExp(String.raw`העברה\s+שביצעת\s+ל([א-ת].+?)${NAME_STOP}`),
   new RegExp(String.raw`ב-([^\s\d][^,.\n]*?)${NAME_STOP}`), // "ב-שופרסל" — avoids matching "ב-89.50" (an amount)
+  // Pepper-style "בSHUK HAIIM HATOVIM" (no hyphen, Latin merchant name glued straight onto "ב" —
+  // insertScriptBoundaries splits it into "ב SHUK..." first). Anchored on a capital Latin letter
+  // right after "ב " so this never fires on the countless ordinary Hebrew words starting with the
+  // same "in/at" prefix.
+  new RegExp(String.raw`(?:^|\s)ב\s+([A-Z][A-Za-z0-9]*(?:\s[A-Za-z0-9]+)*)${NAME_STOP}`),
 ];
 
 // For credits (money received), the sender's name follows the amount — anchored on the currency
@@ -125,19 +157,19 @@ function extractSender(text: string): string | null {
 // trip mode.
 export function parseBankNotification(text: string): ParsedBankNotification | null {
   const normalizedText = insertScriptBoundaries(text);
-  const amount = extractAmount(normalizedText);
-  if (amount === null) return null;
-
   const isCredit = CREDIT_KEYWORDS.some((keyword) => normalizedText.includes(keyword));
   const isCharge = CHARGE_KEYWORDS.some((keyword) => normalizedText.includes(keyword));
+  // Text that matches neither is genuinely unrecognized (not a bank notification at all) — that's
+  // the only case that should fail silently. A recognized charge/credit with no extractable
+  // amount (e.g. "נכנסה לך משכורת", no number anywhere) still returns a result, just with
+  // amount: null, so the caller can ask for manual entry instead of losing the notification.
+  if (!isCredit && !isCharge) return null;
 
+  const amount = extractAmount(normalizedText);
   if (isCredit && !isCharge) {
     return { kind: 'credit', amount, merchant: extractSender(normalizedText) };
   }
-  if (isCharge) {
-    return { kind: 'charge', amount, merchant: extractMerchant(normalizedText) };
-  }
-  return null;
+  return { kind: 'charge', amount, merchant: extractMerchant(normalizedText) };
 }
 
 // Default-category name → merchant keywords, used only to pick a starting guess. Matched against
