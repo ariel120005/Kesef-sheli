@@ -361,7 +361,14 @@ own container is otherwise transparent and lets the single top-level background 
 - Sign up / sign in with email + password; data is scoped to the signed-in account.
 - Add an expense: amount, category, free-text note. Categories are user-managed (add/rename/
   recolor/delete via Settings → ניהול קטגוריות, see below), not a fixed list — a new account (or
-  demo mode) is seeded with 8 defaults (`DEFAULT_CATEGORIES` in `src/constants.ts`).
+  demo mode) is seeded with 8 defaults (`DEFAULT_CATEGORIES` in `src/constants.ts`). `AddExpenseForm.tsx`
+  and `AddTripTransactionForm.tsx` both await their `onAdd` call and catch failures — a Firestore
+  write rejecting (e.g. security rules not yet pasted into the Firebase Console for a fresh
+  project — see "Firestore security rules" above) shows a red inline error instead of the button
+  silently doing nothing, and `console.error`s the real error for debugging. Home also doesn't
+  render the add-expense form until categories have actually loaded (`categoriesLoaded`), so the
+  category chip row is never empty on a brand-new account whose default categories are still
+  being seeded.
 - Quick-amount shortcuts: fixed ₪20/50/100/200 chips under the amount field on the add-expense
   form that fill it in one tap — a static list, not derived from usage.
 - Foreign-currency entry: the add/edit forms for both regular expenses and trip transactions let

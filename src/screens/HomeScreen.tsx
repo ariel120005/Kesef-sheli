@@ -42,6 +42,7 @@ export function HomeScreen() {
     updateBudget,
     expensesLoaded,
     budgetLoaded,
+    categoriesLoaded,
   } = isFirebaseConfigured
     ? {
         expenses: firestoreExpenses.expenses,
@@ -55,6 +56,7 @@ export function HomeScreen() {
         updateBudget: firestoreBudget.updateBudget,
         expensesLoaded: firestoreExpenses.loaded,
         budgetLoaded: firestoreBudget.loaded,
+        categoriesLoaded: firestoreCategories.loaded,
       }
     : {
         expenses: demo.expenses,
@@ -68,6 +70,7 @@ export function HomeScreen() {
         updateBudget: demo.updateBudget,
         expensesLoaded: true,
         budgetLoaded: true,
+        categoriesLoaded: true,
       };
 
   const monthlySpent = useMemo(
@@ -85,7 +88,7 @@ export function HomeScreen() {
     );
   }
 
-  if (!expensesLoaded || !budgetLoaded) {
+  if (!expensesLoaded || !budgetLoaded || !categoriesLoaded) {
     return (
       <View style={styles.messageContainer}>
         <ActivityIndicator size="large" color={colors.accent} />

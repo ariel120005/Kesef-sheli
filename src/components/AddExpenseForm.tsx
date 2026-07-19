@@ -17,7 +17,7 @@ interface Props {
     recurring: boolean,
     originalAmount: number | null,
     originalCurrency: Currency | null
-  ) => void;
+  ) => void | Promise<void>;
 }
 
 const QUICK_AMOUNTS = [20, 50, 100, 200];
@@ -32,6 +32,8 @@ export function AddExpenseForm({ categories, defaultCurrency = 'ILS', onAdd }: P
   const [currency, setCurrency] = useState<Currency | 'ILS'>(defaultCurrency);
   const [rate, setRate] = useState<number | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!category && categories.length > 0) setCategory(categories[0].name);
@@ -59,18 +61,44 @@ export function AddExpenseForm({ categories, defaultCurrency = 'ILS', onAdd }: P
   const isForeign = currency !== 'ILS';
   const convertedILS = isForeign && rate && !isNaN(parsedAmount) ? parsedAmount * rate : null;
 
-  const handleSubmit = () => {
-    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0 || !category) return;
-    if (isForeign) {
-      if (!rate) return;
-      onAdd(parsedAmount * rate, category, note.trim(), recurring, parsedAmount, currency);
-    } else {
-      onAdd(parsedAmount, category, note.trim(), recurring, null, null);
+  const handleSubmit = async () => {
+    if (submitting) return;
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      setSubmitError('יש להזין סכום תקין');
+      return;
     }
-    setAmount('');
-    setNote('');
-    setRecurring(false);
-    setCurrency(defaultCurrency);
+    if (!category) {
+      // Only reachable while categories are still loading (e.g. a brand-new Firestore account
+      // whose default set hasn't finished seeding yet) — the chip row is genuinely empty then, so
+      // there's nothing to silently fail on, but the message still explains why the button seems
+      // to do nothing instead of just no-op-ing.
+      setSubmitError('טוען קטגוריות... נסו שוב בעוד רגע');
+      return;
+    }
+    if (isForeign && !rate) {
+      setSubmitError('טוען שער המרה... נסו שוב בעוד רגע');
+      return;
+    }
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      if (isForeign) {
+        await onAdd(parsedAmount * rate!, category, note.trim(), recurring, parsedAmount, currency);
+      } else {
+        await onAdd(parsedAmount, category, note.trim(), recurring, null, null);
+      }
+      setAmount('');
+      setNote('');
+      setRecurring(false);
+      setCurrency(defaultCurrency);
+    } catch (err) {
+      // Surfaced to the user instead of failing silently — e.g. a Firestore permission-denied
+      // error (unconfigured security rules) would otherwise show nothing at all on click.
+      console.error('Failed to add expense:', err);
+      setSubmitError('שמירת ההוצאה נכשלה. בדקו את החיבור ונסו שוב.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -158,14 +186,20 @@ export function AddExpenseForm({ categories, defaultCurrency = 'ILS', onAdd }: P
         <Text style={styles.recurringText}>הוצאה קבועה כל חודש</Text>
       </View>
 
-      <Pressable onPress={handleSubmit}>
+      {submitError && <Text style={styles.errorText}>{submitError}</Text>}
+
+      <Pressable onPress={handleSubmit} disabled={submitting}>
         <LinearGradient
           colors={GRADIENTS.primary}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={styles.submitButton}
+          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
         >
-          <Text style={styles.submitButtonText}>הוספה</Text>
+          {submitting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.submitButtonText}>הוספה</Text>
+          )}
         </LinearGradient>
       </Pressable>
     </View>
@@ -264,10 +298,19 @@ function getStyles(colors: ThemeColors) {
       fontSize: 14,
       fontWeight: '600',
     },
+    errorText: {
+      color: colors.danger,
+      fontSize: 13,
+      textAlign: 'right',
+      marginBottom: 12,
+    },
     submitButton: {
       borderRadius: 14,
       paddingVertical: 15,
       alignItems: 'center',
+    },
+    submitButtonDisabled: {
+      opacity: 0.7,
     },
     submitButtonText: {
       color: '#FFFFFF',

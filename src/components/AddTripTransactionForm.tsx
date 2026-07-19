@@ -18,7 +18,7 @@ interface Props {
     originalAmount: number | null,
     originalCurrency: Currency | null,
     shared: boolean
-  ) => void;
+  ) => void | Promise<void>;
 }
 
 const TYPE_OPTIONS: { key: TripTransactionType; label: string }[] = [
@@ -42,6 +42,8 @@ export function AddTripTransactionForm({
   const [rate, setRate] = useState<number | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
   const [shared, setShared] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const showSharedToggle = isSharedTrip && type === 'expense';
 
   useEffect(() => {
@@ -66,18 +68,34 @@ export function AddTripTransactionForm({
   const convertedILS =
     currency !== 'ILS' && rate && !isNaN(parsedAmount) ? parsedAmount * rate : null;
 
-  const handleSubmit = () => {
-    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) return;
-    const isShared = showSharedToggle && shared;
-    if (currency !== 'ILS') {
-      if (!rate) return;
-      onAdd(type, parsedAmount * rate, note.trim(), parsedAmount, currency, isShared);
-    } else {
-      onAdd(type, parsedAmount, note.trim(), null, null, isShared);
+  const handleSubmit = async () => {
+    if (submitting) return;
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      setSubmitError('יש להזין סכום תקין');
+      return;
     }
-    setAmount('');
-    setNote('');
-    setCurrency(defaultCurrency);
+    if (currency !== 'ILS' && !rate) {
+      setSubmitError('טוען שער המרה... נסו שוב בעוד רגע');
+      return;
+    }
+    setSubmitError(null);
+    setSubmitting(true);
+    const isShared = showSharedToggle && shared;
+    try {
+      if (currency !== 'ILS') {
+        await onAdd(type, parsedAmount * rate!, note.trim(), parsedAmount, currency, isShared);
+      } else {
+        await onAdd(type, parsedAmount, note.trim(), null, null, isShared);
+      }
+      setAmount('');
+      setNote('');
+      setCurrency(defaultCurrency);
+    } catch (err) {
+      console.error('Failed to add trip transaction:', err);
+      setSubmitError('שמירת התנועה נכשלה. בדקו את החיבור ונסו שוב.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -158,14 +176,20 @@ export function AddTripTransactionForm({
         </Pressable>
       )}
 
-      <Pressable onPress={handleSubmit}>
+      {submitError && <Text style={styles.errorText}>{submitError}</Text>}
+
+      <Pressable onPress={handleSubmit} disabled={submitting}>
         <LinearGradient
           colors={GRADIENTS.primary}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={styles.submitButton}
+          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
         >
-          <Text style={styles.submitButtonText}>הוספה</Text>
+          {submitting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.submitButtonText}>הוספה</Text>
+          )}
         </LinearGradient>
       </Pressable>
     </View>
@@ -267,10 +291,19 @@ function getStyles(colors: ThemeColors) {
       flex: 1,
       textAlign: 'right',
     },
+    errorText: {
+      color: colors.danger,
+      fontSize: 13,
+      textAlign: 'right',
+      marginBottom: 12,
+    },
     submitButton: {
       borderRadius: 14,
       paddingVertical: 15,
       alignItems: 'center',
+    },
+    submitButtonDisabled: {
+      opacity: 0.7,
     },
     submitButtonText: {
       color: '#FFFFFF',
